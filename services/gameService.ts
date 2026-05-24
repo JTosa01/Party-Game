@@ -132,12 +132,17 @@ export async function startGame(gameId: string, word: string): Promise<void> {
   const randomImpostorId =
     playerIds[Math.floor(Math.random() * playerIds.length)];
 
+  // Shuffle player IDs for turn order
+  const shuffledPlayerIds = [...playerIds].sort(() => Math.random() - 0.5);
+
   await updateDoc(gameRef, {
     status: "playing",
     word,
     impostorId: randomImpostorId,
     currentRound: 1,
     startedAt: Date.now(),
+    turnOrder: shuffledPlayerIds,
+    currentTurnIndex: 0,
   });
 }
 
@@ -330,5 +335,19 @@ export async function updatePlayerName(
 
   await updateDoc(gameRef, {
     [`players.${playerId}.name`]: newName,
+  });
+}
+
+// Advance to next turn
+export async function advanceTurn(gameId: string): Promise<void> {
+  const gameRef = doc(db, "games", gameId);
+  const game = await getGame(gameId);
+
+  if (!game || !game.turnOrder) return;
+
+  const nextTurnIndex = (game.currentTurnIndex || 0) + 1;
+
+  await updateDoc(gameRef, {
+    currentTurnIndex: nextTurnIndex,
   });
 }

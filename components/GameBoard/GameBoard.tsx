@@ -94,6 +94,35 @@ export default function GameBoard({
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Main Game Area */}
         <div className="lg:col-span-2 space-y-4">
+          {/* Turn Order */}
+          {game.turnOrder && game.turnOrder.length > 0 && (
+            <div className="bg-slate-800 rounded-2xl shadow-xl p-6 border border-slate-700">
+              <h3 className="text-sm font-semibold text-slate-300 mb-3">Turn Order</h3>
+              <div className="flex gap-2 flex-wrap">
+                {game.turnOrder.map((playerId, index) => {
+                  const player = game.players[playerId];
+                  const isCurrentTurn = index === game.currentTurnIndex;
+                  const isCurrentPlayer = playerId === currentPlayerId;
+                  
+                  return (
+                    <div
+                      key={playerId}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                        isCurrentTurn
+                          ? "bg-yellow-600 text-white ring-2 ring-yellow-400"
+                          : "bg-slate-700 text-slate-200 border border-slate-600"
+                      } ${isCurrentPlayer ? "ring-2 ring-blue-500" : ""}`}
+                      title={isCurrentTurn ? "Currently giving a clue" : ""}
+                    >
+                      {isCurrentTurn && "→ "}
+                      {player?.name || "Unknown"}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Word and Round Info */}
           <div className="bg-slate-800 rounded-2xl shadow-xl p-6 border border-slate-700">
             <div className="text-center mb-6">

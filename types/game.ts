@@ -45,6 +45,8 @@ export interface Game {
   settings: GameSettings;
   createdAt: number;
   startedAt?: number;
+  turnOrder?: string[]; // Array of player IDs in turn order
+  currentTurnIndex?: number; // Index of current player in turn order
 }
 
 export interface GameResult {
