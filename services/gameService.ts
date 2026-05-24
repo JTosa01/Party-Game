@@ -14,6 +14,7 @@ import {
   Unsubscribe,
   writeBatch,
   limit,
+  runTransaction,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import {
@@ -121,7 +122,7 @@ export function onGameUpdate(
   });
 }
 
-// Start game - assign impostor and word
+// Start game - assign impostor and word, then wait for players to reveal cards.
 export async function startGame(gameId: string, word: string): Promise<void> {
   const gameRef = doc(db, "games", gameId);
   const game = await getGame(gameId);
@@ -134,15 +135,121 @@ export async function startGame(gameId: string, word: string): Promise<void> {
 
   // Shuffle player IDs for turn order
   const shuffledPlayerIds = [...playerIds].sort(() => Math.random() - 0.5);
+  const playerUpdates = playerIds.reduce<Record<string, Player>>((players, playerId) => {
+    players[playerId] = {
+      ...game.players[playerId],
+      hasVoted: false,
+      voteTarget: null,
+      votedToSkip: false,
+      hasConfirmedWord: false,
+      votedToSkipWord: false,
+    };
+    return players;
+  }, {});
 
   await updateDoc(gameRef, {
-    status: "playing",
+    status: "revealing",
     word,
     impostorId: randomImpostorId,
-    currentRound: 1,
-    startedAt: Date.now(),
+    currentRound: 0,
+    players: playerUpdates,
     turnOrder: shuffledPlayerIds,
     currentTurnIndex: 0,
+  });
+}
+
+// Confirm the player's reveal card before the round begins.
+export async function confirmRoundCard(
+  gameId: string,
+  playerId: string
+): Promise<void> {
+  const gameRef = doc(db, "games", gameId);
+  await updateDoc(gameRef, {
+    [`players.${playerId}.hasConfirmedWord`]: true,
+  });
+}
+
+// Vote to replace the word during the reveal phase.
+export async function voteToSkipWord(
+  gameId: string,
+  playerId: string
+): Promise<void> {
+  const gameRef = doc(db, "games", gameId);
+  await updateDoc(gameRef, {
+    [`players.${playerId}.votedToSkipWord`]: true,
+  });
+}
+
+// Vote to skip the discussion phase and move to voting once a majority agrees.
+export async function voteToSkipDiscussion(
+  gameId: string,
+  playerId: string
+): Promise<void> {
+  const gameRef = doc(db, "games", gameId);
+  await updateDoc(gameRef, {
+    [`players.${playerId}.votedToSkip`]: true,
+  });
+}
+
+// Start the round once every active player has confirmed their card.
+export async function startRoundIfEveryoneReady(gameId: string): Promise<void> {
+  const gameRef = doc(db, "games", gameId);
+
+  await runTransaction(db, async (transaction) => {
+    const gameSnap = await transaction.get(gameRef);
+    if (!gameSnap.exists()) return;
+
+    const game = gameSnap.data() as Game;
+    if (game.status !== "revealing") return;
+
+    const activePlayers = Object.values(game.players).filter((player) => player.isAlive);
+    const allReady =
+      activePlayers.length > 0 &&
+      activePlayers.every((player) => player.hasConfirmedWord);
+
+    if (!allReady) return;
+
+    transaction.update(gameRef, {
+      status: "playing",
+      currentRound: game.currentRound > 0 ? game.currentRound : 1,
+      startedAt: Date.now(),
+    });
+  });
+}
+
+// Replace the reveal word if a majority voted to skip it.
+export async function replaceWordIfSkipMajority(
+  gameId: string,
+  nextWord: string
+): Promise<void> {
+  const gameRef = doc(db, "games", gameId);
+
+  await runTransaction(db, async (transaction) => {
+    const gameSnap = await transaction.get(gameRef);
+    if (!gameSnap.exists()) return;
+
+    const game = gameSnap.data() as Game;
+    if (game.status !== "revealing") return;
+
+    const activePlayers = Object.values(game.players).filter((player) => player.isAlive);
+    const skipVotes = activePlayers.filter((player) => player.votedToSkipWord).length;
+    if (activePlayers.length === 0 || skipVotes <= activePlayers.length / 2) return;
+
+    const playerUpdates = Object.fromEntries(
+      Object.entries(game.players).map(([playerId, player]) => [
+        playerId,
+        {
+          ...player,
+          hasConfirmedWord: false,
+          votedToSkipWord: false,
+        },
+      ])
+    );
+
+    transaction.update(gameRef, {
+      word: nextWord,
+      players: playerUpdates,
+    });
   });
 }
 

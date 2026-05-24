@@ -49,6 +49,16 @@ export function getRandomWord(): string {
   return DEFAULT_WORDS[Math.floor(Math.random() * DEFAULT_WORDS.length)];
 }
 
+// Get a random default word, avoiding the current word when possible.
+export function getRandomWordExcept(currentWord: string): string {
+  const availableWords = DEFAULT_WORDS.filter(
+    (word) => word.toLowerCase() !== currentWord.toLowerCase()
+  );
+
+  const wordPool = availableWords.length > 0 ? availableWords : DEFAULT_WORDS;
+  return wordPool[Math.floor(Math.random() * wordPool.length)];
+}
+
 // Get all public word lists
 export async function getPublicWordLists(): Promise<WordList[]> {
   const wordListsRef = collection(db, "wordLists");

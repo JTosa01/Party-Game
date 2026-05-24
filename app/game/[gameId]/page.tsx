@@ -6,6 +6,7 @@ import { useGameContext } from "@/context/GameContext";
 import { getGame, onGameUpdate, joinGame } from "@/services/gameService";
 import { Game } from "@/types/game";
 import GameLobby from "@/components/GameLobby/GameLobby";
+import RoundReveal from "@/components/RoundReveal/RoundReveal";
 import GameBoard from "@/components/GameBoard/GameBoard";
 import VotingPanel from "@/components/VotingPanel/VotingPanel";
 import ResultsScreen from "@/components/ResultsScreen/ResultsScreen";
@@ -127,6 +128,10 @@ export default function GamePage() {
   // Render based on game status
   if (game.status === "setup") {
     return <GameLobby gameId={gameId} />;
+  }
+
+  if (game.status === "revealing") {
+    return <RoundReveal gameId={gameId} game={game} />;
   }
 
   if (game.status === "playing") {

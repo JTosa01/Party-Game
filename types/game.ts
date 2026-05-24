@@ -1,4 +1,4 @@
-export type GameStatus = "setup" | "playing" | "voting" | "finished";
+export type GameStatus = "setup" | "revealing" | "playing" | "voting" | "finished";
 export type GameMode = "standard" | "impostor_gets_similar_word" | "impostor_gets_nothing";
 
 export interface Player {
@@ -9,6 +9,8 @@ export interface Player {
   isAlive: boolean;
   joinedAt: number;
   votedToSkip?: boolean;
+  hasConfirmedWord?: boolean;
+  votedToSkipWord?: boolean;
 }
 
 export interface Clue {

@@ -3,11 +3,14 @@
 import { useState, useEffect } from "react";
 import { useGameContext } from "@/context/GameContext";
 import { Game, Clue } from "@/types/game";
-import { submitClue, onCluesUpdate, updateGameStatus } from "@/services/gameService";
+import {
+  submitClue,
+  onCluesUpdate,
+  updateGameStatus,
+  voteToSkipDiscussion,
+} from "@/services/gameService";
 import { useTimer } from "@/hooks/useTimer";
 import ChatBox from "@/components/ChatBox/ChatBox";
-import { db } from "@/services/firebase";
-import { doc, updateDoc } from "firebase/firestore";
 
 interface GameBoardProps {
   gameId: string;
@@ -264,14 +267,10 @@ export default function GameBoard({
               </p>
               <button
                 onClick={async () => {
+                  if (!currentPlayerId) return;
+
                   try {
-                    await updateDoc(doc(db, "games", gameId, "players", currentPlayerId!), {
-                      votedToSkip: true,
-                    });
-                    // Update local document
-                    await updateDoc(doc(db, "games", gameId), {
-                      [`players.${currentPlayerId}.votedToSkip`]: true,
-                    });
+                    await voteToSkipDiscussion(gameId, currentPlayerId);
                     setVotedToSkip(true);
                   } catch (err) {
                     console.error("Failed to vote for skip:", err);
