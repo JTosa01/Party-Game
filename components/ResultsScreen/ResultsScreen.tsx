@@ -35,8 +35,8 @@ export default function ResultsScreen({
   });
 
   const mostVotedId = Object.entries(voteResults).sort((a, b) => b[1] - a[1])[0]?.[0];
-  const mostVotedName = game.players[mostVotedId]?.name || "Unknown";
-  const wasImpostorOuted = mostVotedId === game.impostorId;
+  const mostVotedName = mostVotedId === "nobody" ? "Nobody" : (game.players[mostVotedId]?.name || "Unknown");
+  const wasImpostorOuted = mostVotedId === game.impostorId && mostVotedId !== "nobody";
 
   const handleSubmitGuess = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,21 +74,35 @@ export default function ResultsScreen({
           {/* Result Header */}
           <div className="text-center mb-8">
             <div className="text-5xl font-bold mb-4">
-              {wasImpostorOuted ? "🎉 Impostor Found!" : "😱 Impostor Escaped!"}
+              {mostVotedId === "nobody" 
+                ? "🔄 Another Round!" 
+                : wasImpostorOuted 
+                ? "🎉 Impostor Found!" 
+                : "😱 Impostor Escaped!"}
             </div>
           </div>
 
           {/* Game Stats */}
           <div className="grid grid-cols-2 gap-4 mb-8">
-            <div className="bg-purple-900 border border-purple-700 rounded-lg p-4">
-              <p className="text-slate-400 text-sm">Impostor</p>
-              <p className="text-xl font-bold text-purple-300">{impostorName}</p>
-            </div>
-            <div className="bg-red-900 border border-red-700 rounded-lg p-4">
-              <p className="text-slate-400 text-sm">Most Voted</p>
-              <p className="text-xl font-bold text-red-300">{mostVotedName}</p>
-            </div>
-            {(!isImpostor || guessSubmitted) && (
+            {mostVotedId !== "nobody" && (
+              <>
+                <div className="bg-purple-900 border border-purple-700 rounded-lg p-4">
+                  <p className="text-slate-400 text-sm">Impostor</p>
+                  <p className="text-xl font-bold text-purple-300">{impostorName}</p>
+                </div>
+                <div className="bg-red-900 border border-red-700 rounded-lg p-4">
+                  <p className="text-slate-400 text-sm">Most Voted</p>
+                  <p className="text-xl font-bold text-red-300">{mostVotedName}</p>
+                </div>
+              </>
+            )}
+            {mostVotedId === "nobody" && (
+              <div className="bg-amber-900 border border-amber-700 rounded-lg p-4 col-span-2">
+                <p className="text-slate-400 text-sm mb-2">The group voted for another round</p>
+                <p className="text-lg font-bold text-amber-300">Continuing to Round {game.currentRound + 1}...</p>
+              </div>
+            )}
+            {mostVotedId !== "nobody" && (!isImpostor || guessSubmitted) && (
               <div className="bg-blue-900 border border-blue-700 rounded-lg p-4 col-span-2">
                 <p className="text-slate-400 text-sm">The Word Was</p>
                 <p className="text-3xl font-bold text-blue-300">{game.word}</p>
@@ -97,7 +111,7 @@ export default function ResultsScreen({
           </div>
 
           {/* Impostor Guess Section */}
-          {isImpostor && !guessSubmitted && (
+          {isImpostor && !guessSubmitted && mostVotedId !== "nobody" && (
             <form onSubmit={handleSubmitGuess} className="mb-8 p-4 bg-slate-700 border border-yellow-700 rounded-lg">
               <h3 className="font-bold text-white mb-4">
                 {wasImpostorOuted
@@ -137,11 +151,16 @@ export default function ResultsScreen({
               {Object.entries(voteResults)
                 .sort((a, b) => b[1] - a[1])
                 .map(([playerId, voteCount]) => {
-                  const playerName = game.players[playerId]?.name || "Unknown";
+                  const playerName = playerId === "nobody" ? "Nobody - Another Round" : (game.players[playerId]?.name || "Unknown");
+                  const isNobody = playerId === "nobody";
                   return (
-                    <div key={playerId} className="flex items-center justify-between p-3 bg-slate-700 rounded-lg border border-slate-600">
-                      <span className="text-white">{playerName}</span>
-                      <span className="font-bold text-slate-200">{voteCount} vote{voteCount > 1 ? "s" : ""}</span>
+                    <div key={playerId} className={`flex items-center justify-between p-3 rounded-lg border ${
+                      isNobody 
+                        ? "bg-amber-900 border-amber-700" 
+                        : "bg-slate-700 border-slate-600"
+                    }`}>
+                      <span className={isNobody ? "text-amber-200" : "text-white"}>{playerName}</span>
+                      <span className={`font-bold ${isNobody ? "text-amber-200" : "text-slate-200"}`}>{voteCount} vote{voteCount > 1 ? "s" : ""}</span>
                     </div>
                   );
                 })}

@@ -8,6 +8,7 @@ export interface Player {
   voteTarget: string | null;
   isAlive: boolean;
   joinedAt: number;
+  votedToSkip?: boolean;
 }
 
 export interface Clue {

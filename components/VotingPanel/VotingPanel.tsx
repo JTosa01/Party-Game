@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Game } from "@/types/game";
 import { submitVote, getVoteResults, updateGameStatus, endGame, getGame } from "@/services/gameService";
 import { useGameContext } from "@/context/GameContext";
+import { db } from "@/services/firebase";
+import { doc, writeBatch } from "firebase/firestore";
 
 interface VotingPanelProps {
   gameId: string;
@@ -53,7 +55,7 @@ export default function VotingPanel({
       const votedCount = Object.values(game.players).filter(p => p.isAlive && p.hasVoted).length;
 
       if (alivePlayerCount > 0 && votedCount === alivePlayerCount && votedCount > 0) {
-        // All alive players have voted, transition to finished
+        // All alive players have voted, check results
         try {
           const currentGame = await getGame(gameId);
           if (currentGame && currentGame.status === "voting") {
@@ -61,20 +63,42 @@ export default function VotingPanel({
             const mostVotedId = Object.entries(results).sort((a, b) => b[1] - a[1])[0]?.[0];
             
             if (mostVotedId) {
-              const mostVotedName = game.players[mostVotedId]?.name || "Unknown";
-              await endGame(gameId, {
-                impostorId: game.impostorId,
-                impostorName: game.players[game.impostorId]?.name || "Unknown",
-                impostorGuess: null,
-                wasOuted: mostVotedId === game.impostorId,
-                finalWord: game.word,
-                votedForId: mostVotedId,
-                votedForName: mostVotedName,
-                duration: game.startedAt ? Date.now() - game.startedAt : 0,
-                timestamp: Date.now(),
-              });
+              // If "nobody" won, go back to playing phase for another round
+              if (mostVotedId === "nobody") {
+                // Reset votes for next round
+                const batch = writeBatch(db);
+                const gameRef = doc(db, "games", gameId);
+                
+                Object.keys(currentGame.players).forEach((playerId) => {
+                  batch.update(gameRef, {
+                    [`players.${playerId}.hasVoted`]: false,
+                    [`players.${playerId}.voteTarget`]: null,
+                  });
+                });
+                
+                batch.update(gameRef, {
+                  currentRound: currentGame.currentRound + 1,
+                  status: "playing",
+                });
+                
+                await batch.commit();
+              } else {
+                // Someone was voted out, end the game
+                const mostVotedName = game.players[mostVotedId]?.name || "Unknown";
+                await endGame(gameId, {
+                  impostorId: game.impostorId,
+                  impostorName: game.players[game.impostorId]?.name || "Unknown",
+                  impostorGuess: null,
+                  wasOuted: mostVotedId === game.impostorId,
+                  finalWord: game.word,
+                  votedForId: mostVotedId,
+                  votedForName: mostVotedName,
+                  duration: game.startedAt ? Date.now() - game.startedAt : 0,
+                  timestamp: Date.now(),
+                });
 
-              await updateGameStatus(gameId, "finished");
+                await updateGameStatus(gameId, "finished");
+              }
             }
           }
         } catch (err) {
@@ -149,6 +173,22 @@ export default function VotingPanel({
 
           {/* Players to Vote For */}
           <div className="space-y-3 mb-8">
+            {/* Nobody Option */}
+            <button
+              onClick={() => handleVote("nobody")}
+              disabled={hasVoted || loading}
+              className={`w-full p-4 rounded-lg font-semibold transition border-2 ${
+                selectedVote === "nobody"
+                  ? "bg-amber-600 text-white border-amber-500"
+                  : hasVoted
+                  ? "bg-slate-700 text-slate-400 cursor-not-allowed border-slate-600"
+                  : "bg-slate-700 text-white hover:bg-amber-600 border-amber-600"
+              }`}
+            >
+              Nobody - Another Round
+              {selectedVote === "nobody" && " ✓"}
+            </button>
+
             {alivePlayersWithoutCurrent.length === 0 ? (
               <p className="text-slate-400 text-center py-8">
                 No other players available to vote for
