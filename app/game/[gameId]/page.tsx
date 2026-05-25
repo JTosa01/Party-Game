@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useGameContext } from "@/context/GameContext";
-import { getGame, onGameUpdate, joinGame } from "@/services/gameService";
-import { Game } from "@/types/game";
+import { onGameUpdate, resetGameToLobby } from "@/services/gameService";
 import GameLobby from "@/components/GameLobby/GameLobby";
 import RoundReveal from "@/components/RoundReveal/RoundReveal";
 import GameBoard from "@/components/GameBoard/GameBoard";
@@ -20,36 +19,6 @@ export default function GamePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [unsubscribe, setUnsubscribe] = useState<(() => void) | null>(null);
-  const [autoJoinAttempted, setAutoJoinAttempted] = useState(false);
-
-  // Auto-join if player has name in localStorage but not in game yet
-  useEffect(() => {
-    if (!gameId || !game || autoJoinAttempted) return;
-
-    const hasPlayerInGame = currentPlayerId && game.players[currentPlayerId];
-
-    // If player has a name but isn't in the game yet, auto-join them
-    if (
-      currentPlayerName &&
-      !hasPlayerInGame &&
-      game.status === "setup"
-    ) {
-      const playerId = currentPlayerId || `player_${Date.now()}`;
-      joinGame(gameId, playerId, currentPlayerName)
-        .then(() => {
-          if (!currentPlayerId) {
-            setCurrentPlayer(playerId, currentPlayerName);
-          }
-          setAutoJoinAttempted(true);
-        })
-        .catch((err) => {
-          console.error("Auto-join failed:", err);
-          setAutoJoinAttempted(true);
-        });
-    } else {
-      setAutoJoinAttempted(true);
-    }
-  }, [gameId, game, currentPlayerId, currentPlayerName, autoJoinAttempted, setCurrentPlayer]);
 
   // Subscribe to game updates
   useEffect(() => {
@@ -110,8 +79,17 @@ export default function GamePage() {
   }
 
   const handlePlayAgain = async () => {
-    // Reset game state and go back to lobby
-    router.push("/");
+    const playerId = currentPlayerId || `player_${Date.now()}`;
+    const playerName =
+      currentPlayerName ||
+      (currentPlayerId ? game.players[currentPlayerId]?.name : null) ||
+      "Player";
+
+    await resetGameToLobby(gameId, playerId, playerName);
+
+    if (!currentPlayerId) {
+      setCurrentPlayer(playerId, playerName);
+    }
   };
 
   const handleExit = async () => {

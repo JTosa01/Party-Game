@@ -15,6 +15,7 @@ import {
   writeBatch,
   limit,
   runTransaction,
+  deleteField,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import {
@@ -345,6 +346,56 @@ export async function endGame(
   await updateDoc(gameRef, {
     status: "finished",
   });
+}
+
+async function deleteCollectionDocs(path: string): Promise<void> {
+  const snapshot = await getDocs(collection(db, path));
+  if (snapshot.empty) return;
+
+  const batch = writeBatch(db);
+  snapshot.docs.forEach((document) => {
+    batch.delete(document.ref);
+  });
+  await batch.commit();
+}
+
+// Reset a finished game back to the lobby with only the player who clicked Play Again.
+export async function resetGameToLobby(
+  gameId: string,
+  playerId: string,
+  playerName: string
+): Promise<void> {
+  const gameRef = doc(db, "games", gameId);
+  const player: Player = {
+    id: playerId,
+    name: playerName,
+    hasVoted: false,
+    voteTarget: null,
+    isAlive: true,
+    joinedAt: Date.now(),
+    votedToSkip: false,
+    hasConfirmedWord: false,
+    votedToSkipWord: false,
+  };
+
+  await updateDoc(gameRef, {
+    hostId: playerId,
+    status: "setup",
+    currentRound: 0,
+    word: "",
+    impostorId: "",
+    players: {
+      [playerId]: player,
+    },
+    startedAt: deleteField(),
+    turnOrder: deleteField(),
+    currentTurnIndex: deleteField(),
+  });
+
+  await Promise.all([
+    deleteCollectionDocs(`games/${gameId}/clues`),
+    deleteCollectionDocs(`games/${gameId}/chat`),
+  ]);
 }
 
 // Add chat message
