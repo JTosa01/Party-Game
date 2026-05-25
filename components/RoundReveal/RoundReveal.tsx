@@ -9,7 +9,7 @@ import {
   startRoundIfEveryoneReady,
   voteToSkipWord,
 } from "@/services/gameService";
-import { getRandomWordExcept } from "@/services/wordService";
+import { getRandomWordExcept, getPlayerWord } from "@/services/wordService";
 
 interface RoundRevealProps {
   gameId: string;
@@ -113,14 +113,24 @@ export default function RoundReveal({ gameId, game }: RoundRevealProps) {
             }`}
           >
             <p className="text-sm font-semibold text-slate-300 mb-4">
-              {isImpostor ? "Your role" : "Your word"}
+              {isImpostor
+                ? game.settings.gameMode === "impostor_gets_similar_word"
+                  ? "Your word"
+                  : "Your role"
+                : "Your word"}
             </p>
             <div className={`text-5xl font-bold ${isImpostor ? "text-red-300" : "text-blue-300"}`}>
-              {isImpostor ? "Impostor" : game.word}
+              {isImpostor
+                ? game.settings.gameMode === "impostor_gets_similar_word"
+                  ? game.impostorWord || getPlayerWord(game.word, true, game.impostorWord)
+                  : "Impostor"
+                : game.word}
             </div>
             <p className="text-slate-300 mt-5">
               {isImpostor
-                ? "Blend in, listen closely, and try to work out the word."
+                ? game.settings.gameMode === "impostor_gets_similar_word"
+                  ? "You have a word related to the real word. Blend in and figure out what everyone is really talking about."
+                  : "Blend in, listen closely, and try to work out the word."
                 : "Give clues that help the group without making it too obvious."}
             </p>
           </div>

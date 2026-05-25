@@ -45,6 +45,7 @@ export interface Game {
   status: GameStatus;
   currentRound: number;
   word: string;
+  impostorWord?: string; // Fake word shown to impostors in "impostor_gets_similar_word" mode
   impostorId: string;
   impostorIds?: string[];
   players: Record<string, Player>;

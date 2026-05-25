@@ -171,6 +171,17 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
     }
   };
 
+  const handleGameModeChange = async (value: string) => {
+    if (!isHost) return;
+
+    try {
+      await updateGameSettings(gameId, { gameMode: value as any });
+    } catch (err) {
+      setError("Failed to update game mode");
+      console.error(err);
+    }
+  };
+
   const handleOpenDevMessage = (player: Player) => {
     if (!devModeEnabled) return;
 
@@ -494,6 +505,27 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
                     <span className="text-sm text-slate-300 whitespace-nowrap">seconds</span>
                   </div>
                 </div>
+              </div>
+
+              <div className="mb-3 sm:mb-4 rounded-lg border border-slate-600 bg-slate-700 p-3 sm:p-4">
+                <label
+                  htmlFor="game-mode"
+                  className="block text-base sm:text-sm font-medium text-slate-200 mb-2"
+                >
+                  Game Mode
+                </label>
+                <select
+                  id="game-mode"
+                  value={gameData?.settings.gameMode || "standard"}
+                  onChange={(e) => handleGameModeChange(e.target.value)}
+                  className="w-full px-4 py-3 sm:py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 min-h-12 sm:min-h-10 text-base sm:text-sm"
+                >
+                  <option value="impostor_gets_similar_word">Fake Word - Impostor gets similar word</option>
+                  <option value="impostor_gets_nothing">Classic - Impostor gets nothing</option>
+                </select>
+                <p className="text-xs text-slate-400 mt-2">
+                  In "Fake Word" mode, the impostor sees a similar word instead of knowing they're the impostor.
+                </p>
               </div>
 
               {error && <div className="text-red-400 text-sm mb-3 sm:mb-4 bg-red-950 p-3 rounded border border-red-900">{error}</div>}

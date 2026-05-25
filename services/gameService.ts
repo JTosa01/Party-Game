@@ -27,6 +27,7 @@ import {
   GameResult,
   GameSettings,
 } from "@/types/game";
+import { getSimilarWord } from "./wordService";
 
 // Generate a random 4-character game code
 function generateGameCode(): string {
@@ -152,6 +153,8 @@ export async function startGame(gameId: string, word: string): Promise<void> {
     throw new Error("At least 3 players are required to start");
   }
 
+  // Shuffle player IDs for turn order (independent from impostor selection)
+  const shuffledPlayerIds = [...playerIds].sort(() => Math.random() - 0.5);
   const maxImpostors = playerIds.length - 2;
   const impostorCount = Math.min(
     Math.max(1, game.settings.impostorCount || 1),
@@ -162,8 +165,6 @@ export async function startGame(gameId: string, word: string): Promise<void> {
   const shuffledForImpostors = [...playerIds].sort(() => Math.random() - 0.5);
   const impostorIds = shuffledForImpostors.slice(0, impostorCount);
   
-  // Separately shuffle player IDs for turn order
-  const shuffledPlayerIds = [...playerIds].sort(() => Math.random() - 0.5);
   const playerUpdates = playerIds.reduce<Record<string, Player>>((players, playerId) => {
     players[playerId] = {
       ...game.players[playerId],
@@ -176,9 +177,15 @@ export async function startGame(gameId: string, word: string): Promise<void> {
     return players;
   }, {});
 
+  // Generate fake word for impostors if in "impostor_gets_similar_word" mode
+  const impostorWord = game.settings.gameMode === "impostor_gets_similar_word" 
+    ? getSimilarWord(word)
+    : undefined;
+
   await updateDoc(gameRef, {
     status: "revealing",
     word,
+    ...(impostorWord && { impostorWord }),
     impostorId: impostorIds[0],
     impostorIds,
     currentRound: 0,
@@ -276,8 +283,14 @@ export async function replaceWordIfSkipMajority(
       ])
     );
 
+    // Generate new fake word if in "impostor_gets_similar_word" mode
+    const newImpostorWord = game.settings.gameMode === "impostor_gets_similar_word"
+      ? getSimilarWord(nextWord)
+      : undefined;
+
     transaction.update(gameRef, {
       word: nextWord,
+      ...(newImpostorWord && { impostorWord: newImpostorWord }),
       players: playerUpdates,
     });
   });
@@ -412,6 +425,7 @@ export async function resetGameToLobby(
     status: "setup",
     currentRound: 0,
     word: "",
+    impostorWord: deleteField(),
     impostorId: "",
     impostorIds: [],
     players: {
