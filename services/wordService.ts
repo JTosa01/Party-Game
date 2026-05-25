@@ -398,8 +398,8 @@ export function getPlayerWord(
   isImpostor: boolean,
   impostorWord?: string
 ): string {
-  if (isImpostor && impostorWord) {
-    return impostorWord;
+  if (isImpostor) {
+    return impostorWord || "?";
   }
   return actualWord;
 }

@@ -6,6 +6,7 @@ import {
   submitVote,
   getVoteResults,
   resolveCompletedVote,
+  forceEndVoting,
 } from "@/services/gameService";
 import { useGameContext } from "@/context/GameContext";
 
@@ -24,7 +25,9 @@ export default function VotingPanel({
   const [selectedVote, setSelectedVote] = useState<string | null>(null);
   const [voteResults, setVoteResults] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
+  const [forcingEnd, setForcingEnd] = useState(false);
   const [error, setError] = useState("");
+  const isHost = currentPlayerId === game.hostId;
 
   const alivePlayersWithoutCurrent = Object.values(game.players).filter(
     (p) => p.isAlive && p.id !== currentPlayerId
@@ -76,6 +79,22 @@ export default function VotingPanel({
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForceEndVoting = async () => {
+    if (!isHost || forcingEnd) return;
+
+    setForcingEnd(true);
+    setError("");
+
+    try {
+      await forceEndVoting(gameId);
+    } catch (err) {
+      setError("Failed to force end voting");
+      console.error(err);
+    } finally {
+      setForcingEnd(false);
     }
   };
 
@@ -184,6 +203,21 @@ export default function VotingPanel({
               </p>
               <p className="text-green-400 text-sm text-center mt-2">
                 Waiting for other players to vote...
+              </p>
+            </div>
+          )}
+
+          {isHost && (
+            <div className="mt-6 pt-6 border-t border-slate-600">
+              <button
+                onClick={handleForceEndVoting}
+                disabled={forcingEnd}
+                className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 text-white font-semibold rounded-lg transition"
+              >
+                {forcingEnd ? "Ending voting..." : "Force End Voting"}
+              </button>
+              <p className="text-xs text-slate-400 text-center mt-2">
+                Host only: Count votes as they are now
               </p>
             </div>
           )}
