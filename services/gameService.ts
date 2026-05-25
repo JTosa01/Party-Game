@@ -459,6 +459,77 @@ export async function resetGameToLobby(
   ]);
 }
 
+// Force end voting and resolve with current votes (for host)
+export async function forceEndVoting(gameId: string): Promise<void> {
+  const gameRef = doc(db, "games", gameId);
+
+  await runTransaction(db, async (transaction) => {
+    const gameSnap = await transaction.get(gameRef);
+    if (!gameSnap.exists()) return;
+
+    const game = gameSnap.data() as Game;
+    if (game.status !== "voting") return;
+
+    const alivePlayers = Object.values(game.players).filter((player) => player.isAlive);
+
+    const voteCounts: Record<string, number> = {};
+    alivePlayers.forEach((player) => {
+      if (player.voteTarget) {
+        voteCounts[player.voteTarget] = (voteCounts[player.voteTarget] || 0) + 1;
+      }
+    });
+
+    const mostVotedId = Object.entries(voteCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+    if (!mostVotedId) return;
+
+    const eliminatedPlayers = Object.fromEntries(
+      Object.entries(game.players).map(([playerId, player]) => [
+        playerId,
+        {
+          ...player,
+          ...(playerId === mostVotedId && mostVotedId !== "nobody"
+            ? { isAlive: false }
+            : {}),
+        },
+      ])
+    ) as Record<string, Player>;
+
+    const nextGame: Game = {
+      ...game,
+      players: eliminatedPlayers,
+    };
+    const outcome = getGameOutcome(nextGame);
+
+    if (outcome) {
+      transaction.update(gameRef, {
+        players: eliminatedPlayers,
+        status: "finished",
+      });
+      return;
+    }
+
+    const nextPlayers = Object.fromEntries(
+      Object.entries(eliminatedPlayers).map(([playerId, player]) => [
+        playerId,
+        {
+          ...player,
+          hasVoted: false,
+          voteTarget: null,
+          votedToSkip: false,
+        },
+      ])
+    ) as Record<string, Player>;
+
+    transaction.update(gameRef, {
+      players: nextPlayers,
+      currentRound: game.currentRound + 1,
+      status: "playing",
+      turnOrder: (game.turnOrder || []).filter((playerId) => nextPlayers[playerId]?.isAlive),
+      currentTurnIndex: 0,
+    });
+  });
+}
+
 export async function resolveCompletedVote(gameId: string): Promise<void> {
   const gameRef = doc(db, "games", gameId);
 
@@ -556,7 +627,8 @@ export async function sendDevBroadcast(
   playerName: string,
   targetPlayerId: string,
   targetPlayerName: string,
-  message: string
+  message: string,
+  gifUrl?: string
 ): Promise<void> {
   const gameRef = doc(db, "games", gameId);
   await updateDoc(gameRef, {
@@ -567,6 +639,7 @@ export async function sendDevBroadcast(
       targetPlayerId,
       targetPlayerName,
       timestamp: Date.now(),
+      ...(gifUrl && { gifUrl }),
     },
   });
 }

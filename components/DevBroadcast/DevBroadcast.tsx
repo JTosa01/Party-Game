@@ -36,6 +36,16 @@ export default function DevBroadcast() {
         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">
           Message for {broadcast.targetPlayerName}
         </p>
+        {broadcast.gifUrl && (
+          <div className="mt-3 flex justify-center">
+            <img
+              src={broadcast.gifUrl}
+              alt="Message GIF"
+              className="max-h-64 max-w-full rounded-lg"
+              loading="lazy"
+            />
+          </div>
+        )}
         <p className="mt-2 text-3xl font-bold text-white">{displayedMessage}</p>
       </div>
     </div>

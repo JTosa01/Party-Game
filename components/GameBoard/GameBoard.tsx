@@ -38,6 +38,7 @@ export default function GameBoard({
   const [devModeEnabled, setDevModeEnabled] = useState(false);
   const [devTargetId, setDevTargetId] = useState<string | null>(null);
   const [devMessage, setDevMessage] = useState("");
+  const [devGifUrl, setDevGifUrl] = useState("");
   const [sendingDevMessage, setSendingDevMessage] = useState(false);
   const [devStatusMessage, setDevStatusMessage] = useState("");
 
@@ -158,6 +159,7 @@ export default function GameBoard({
     if (!devModeEnabled || !roundIsActive) return;
     setDevTargetId(playerId);
     setDevMessage("");
+    setDevGifUrl("");
     setDevStatusMessage("");
   };
 
@@ -179,12 +181,14 @@ export default function GameBoard({
         currentPlayerName,
         targetPlayer.id,
         targetPlayer.name,
-        devMessage.trim()
+        devMessage.trim(),
+        devGifUrl || undefined
       );
 
       setDevStatusMessage(`Message sent to ${targetPlayer.name}.`);
       setDevTargetId(null);
       setDevMessage("");
+      setDevGifUrl("");
 
       window.setTimeout(() => {
         clearDevBroadcast(gameId).catch((err) => {
@@ -250,20 +254,30 @@ export default function GameBoard({
                   <p className="text-sm text-cyan-100 mb-3">
                     Sending a page message to {devTarget.name}.
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 mb-2">
                     <input
                       type="text"
                       value={devMessage}
                       onChange={(e) => setDevMessage(e.target.value)}
                       placeholder="Type the page message"
-                      className="flex-1 px-4 py-2 bg-slate-800 border border-cyan-800 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-cyan-500"
+                      className="w-full px-4 py-2 bg-slate-800 border border-cyan-800 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-cyan-500"
                       disabled={sendingDevMessage}
                       autoFocus
                     />
+                    <input
+                      type="url"
+                      value={devGifUrl}
+                      onChange={(e) => setDevGifUrl(e.target.value)}
+                      placeholder="Optional: GIF URL (e.g., https://media.giphy.com/...)"
+                      className="w-full px-4 py-2 bg-slate-800 border border-cyan-800 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-cyan-500"
+                      disabled={sendingDevMessage}
+                    />
+                  </div>
+                  <div className="flex gap-2">
                     <button
                       type="submit"
                       disabled={sendingDevMessage || !devMessage.trim()}
-                      className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition disabled:bg-slate-600"
+                      className="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition disabled:bg-slate-600"
                     >
                       {sendingDevMessage ? "Sending..." : "Send"}
                     </button>
@@ -271,7 +285,7 @@ export default function GameBoard({
                       type="button"
                       onClick={() => setDevTargetId(null)}
                       disabled={sendingDevMessage}
-                      className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition disabled:bg-slate-600"
+                      className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition disabled:bg-slate-600"
                     >
                       Cancel
                     </button>

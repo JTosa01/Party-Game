@@ -32,6 +32,7 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
   const [devModeEnabled, setDevModeEnabled] = useState(false);
   const [devTarget, setDevTarget] = useState<Player | null>(null);
   const [devMessage, setDevMessage] = useState("");
+  const [devGifUrl, setDevGifUrl] = useState("");
   const [sendingDevMessage, setSendingDevMessage] = useState(false);
 
   useEffect(() => {
@@ -246,10 +247,12 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
         senderName,
         devTarget.id,
         devTarget.name,
-        devMessage.trim()
+        devMessage.trim(),
+        devGifUrl || undefined
       );
       setDevTarget(null);
       setDevMessage("");
+      setDevGifUrl("");
     } catch (err) {
       setError("Failed to send dev message");
       console.error(err);
@@ -393,15 +396,23 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
               <label className="block text-sm font-medium text-cyan-100 mb-2">
                 Message for {devTarget.name}
               </label>
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-col gap-2">
                 <input
                   type="text"
                   value={devMessage}
                   onChange={(e) => setDevMessage(e.target.value)}
-                  className="flex-1 px-4 py-3 sm:py-2 bg-slate-800 border border-cyan-800 rounded-lg text-base sm:text-sm text-white placeholder-slate-400 focus:ring-2 focus:ring-cyan-500 min-h-12 sm:min-h-10"
+                  className="w-full px-4 py-3 sm:py-2 bg-slate-800 border border-cyan-800 rounded-lg text-base sm:text-sm text-white placeholder-slate-400 focus:ring-2 focus:ring-cyan-500 min-h-12 sm:min-h-10"
                   placeholder="Type the page message"
                   disabled={sendingDevMessage}
                   autoFocus
+                />
+                <input
+                  type="url"
+                  value={devGifUrl}
+                  onChange={(e) => setDevGifUrl(e.target.value)}
+                  className="w-full px-4 py-3 sm:py-2 bg-slate-800 border border-cyan-800 rounded-lg text-base sm:text-sm text-white placeholder-slate-400 focus:ring-2 focus:ring-cyan-500 min-h-12 sm:min-h-10"
+                  placeholder="Optional: GIF URL (e.g., https://media.giphy.com/...)"
+                  disabled={sendingDevMessage}
                 />
                 <div className="flex gap-2">
                   <button

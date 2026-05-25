@@ -61,6 +61,7 @@ export interface Game {
     targetPlayerId: string;
     targetPlayerName: string;
     timestamp: number;
+    gifUrl?: string;
   };
 }
 
