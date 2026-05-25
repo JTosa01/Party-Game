@@ -53,6 +53,59 @@ export default function ChatBox({ gameId }: ChatBoxProps) {
       return;
     }
 
+    // Flashbang easter egg (dev mode only)
+    if (normalizedMessage === "flashbang") {
+      const isDevMode = currentPlayerId && localStorage.getItem(`devMode:${currentPlayerId}`);
+      if (isDevMode) {
+        // Flash the screen white
+        const flash = document.createElement("div");
+        flash.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background: white;
+          z-index: 9999;
+          animation: flashFade 0.6s ease-out forwards;
+        `;
+        
+        // Add CSS animation
+        const style = document.createElement("style");
+        style.textContent = `
+          @keyframes flashFade {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+          }
+        `;
+        document.head.appendChild(style);
+        document.body.appendChild(flash);
+        
+        // Play loud sound
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 800;
+        oscillator.type = "sine";
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.2);
+        
+        // Remove flash after animation
+        setTimeout(() => flash.remove(), 600);
+        
+        setMessageInput("");
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
