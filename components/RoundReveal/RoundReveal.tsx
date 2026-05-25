@@ -30,6 +30,10 @@ export default function RoundReveal({ gameId, game }: RoundRevealProps) {
   const skipCount = activePlayers.filter((player) => player.votedToSkipWord).length;
   const impostorIds = game.impostorIds?.length ? game.impostorIds : [game.impostorId];
   const isImpostor = currentPlayerId ? impostorIds.includes(currentPlayerId) : false;
+  const showFakeMode = game.settings.gameMode === "impostor_gets_similar_word";
+  const visualImpostor = isImpostor && !showFakeMode;
+  
+  
   const hasConfirmed = !!currentPlayer?.hasConfirmedWord;
   const votedToSkipWord = !!currentPlayer?.votedToSkipWord;
 
@@ -107,32 +111,39 @@ export default function RoundReveal({ gameId, game }: RoundRevealProps) {
 
           <div
             className={`rounded-2xl border p-8 text-center mb-6 ${
-              isImpostor
+              visualImpostor
                 ? "bg-red-950 border-red-700"
                 : "bg-blue-950 border-blue-700"
             }`}
           >
-            <p className="text-sm font-semibold text-slate-300 mb-4">
-              {isImpostor
-                ? game.settings.gameMode === "impostor_gets_similar_word"
-                  ? "Your word"
-                  : "Your role"
-                : "Your word"}
-            </p>
-            <div className={`text-5xl font-bold ${isImpostor ? "text-red-300" : "text-blue-300"}`}>
-              {isImpostor
-                ? game.settings.gameMode === "impostor_gets_similar_word"
-                  ? game.impostorWord || getPlayerWord(game.word, true, game.impostorWord)
-                  : "Impostor"
-                : game.word}
-            </div>
-            <p className="text-slate-300 mt-5">
-              {isImpostor
-                ? game.settings.gameMode === "impostor_gets_similar_word"
-                  ? "You have a word related to the real word. Blend in and figure out what everyone is really talking about."
-                  : "Blend in, listen closely, and try to work out the word."
-                : "Give clues that help the group without making it too obvious."}
-            </p>
+            {/* Determine the word to show this player */}
+            {(() => {
+              const displayed = showFakeMode
+                ? getPlayerWord(game.word, isImpostor, game.impostorWord)
+                : isImpostor
+                ? "Impostor"
+                : game.word;
+
+              return (
+                <>
+                      <p className="text-sm font-semibold text-slate-300 mb-4">
+                        {showFakeMode ? "Your word" : isImpostor ? "Your role" : "Your word"}
+                      </p>
+
+                  <div className={`text-5xl font-bold ${visualImpostor ? "text-red-300" : "text-blue-300"}`}>
+                    {displayed}
+                  </div>
+
+                  <p className="text-slate-300 mt-5">
+                    {showFakeMode
+                      ? "Give clues that help the group without making it too obvious."
+                      : isImpostor
+                      ? "Blend in, listen closely, and try to work out the word."
+                      : "Give clues that help the group without making it too obvious."}
+                  </p>
+                </>
+              );
+            })()}
           </div>
 
           <div className="grid grid-cols-2 gap-3 mb-6">

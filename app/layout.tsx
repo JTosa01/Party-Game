@@ -20,7 +20,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Impostor Game",
   description: "Play the Impostor game with your friends online",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover",
+};
+
+// Next.js now expects viewport configuration to be exported via `viewport`.
+// Move the string-based viewport into the dedicated export to avoid warnings.
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

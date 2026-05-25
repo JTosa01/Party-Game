@@ -68,6 +68,12 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
   const isHost = currentPlayerId === gameData?.hostId;
   const playerCount = gameData ? Object.keys(gameData.players).length : 0;
   const maxImpostorCount = playerCount >= 3 ? playerCount - 2 : 1;
+  const [impostorCountInput, setImpostorCountInput] = useState<string | number>(
+    gameData?.settings.impostorCount ?? ""
+  );
+  const [timerSecondsInput, setTimerSecondsInput] = useState<string | number>(
+    gameData?.settings.clueTimeLimit ?? ""
+  );
 
   const handleStartGame = async () => {
     if (!isHost) return;
@@ -170,6 +176,35 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
       console.error(err);
     }
   };
+
+  // Allow editable/clearing input while typing, commit on blur or Enter
+  const commitImpostorCount = (value: string) => {
+    if (value.trim() === "") {
+      setImpostorCountInput("");
+      return;
+    }
+    const count = Number(value);
+    if (!Number.isFinite(count) || count < 1 || count > maxImpostorCount) {
+      // Reset to last valid value if out of range
+      setImpostorCountInput(gameData?.settings.impostorCount ?? "");
+      return;
+    }
+    handleImpostorCountChange(value);
+  };
+
+  const commitTimerSeconds = (value: string) => {
+    if (value.trim() === "") {
+      setTimerSecondsInput("");
+      return;
+    }
+    handleTimerSecondsChange(value);
+  };
+
+  useEffect(() => {
+    if (!gameData) return;
+    setImpostorCountInput(gameData.settings.impostorCount ?? "");
+    setTimerSecondsInput(gameData.settings.clueTimeLimit ?? "");
+  }, [gameData]);
 
   const handleGameModeChange = async (value: string) => {
     if (!isHost) return;
@@ -445,11 +480,22 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
                     type="number"
                     min={1}
                     max={maxImpostorCount}
-                    value={Math.min(
-                      maxImpostorCount,
-                      Math.max(1, gameData.settings.impostorCount || 1)
-                    )}
-                    onChange={(e) => handleImpostorCountChange(e.target.value)}
+                    value={impostorCountInput as any}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "") {
+                        setImpostorCountInput("");
+                      } else {
+                        const num = Number(val);
+                        if (Number.isFinite(num) && num >= 1 && num <= maxImpostorCount) {
+                          setImpostorCountInput(val);
+                        }
+                      }
+                    }}
+                    onBlur={(e) => commitImpostorCount(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitImpostorCount((e.target as HTMLInputElement).value);
+                    }}
                     className="w-full sm:w-28 px-4 py-3 sm:py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 min-h-12 sm:min-h-10 text-base sm:text-sm"
                   />
                   <span className="text-sm text-slate-300 whitespace-nowrap">
@@ -497,11 +543,15 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
                       min={10}
                       max={600}
                       step={5}
-                      value={gameData.settings.clueTimeLimit}
-                      onChange={(e) => handleTimerSecondsChange(e.target.value)}
+                      value={timerSecondsInput as any}
+                      onChange={(e) => setTimerSecondsInput(e.target.value)}
+                      onBlur={(e) => commitTimerSeconds(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitTimerSeconds((e.target as HTMLInputElement).value);
+                      }}
                       disabled={!gameData.settings.roundTimerEnabled}
                       className="w-full sm:w-28 px-4 py-3 sm:py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 disabled:text-slate-500 min-h-12 sm:min-h-10 text-base sm:text-sm"
-                    />
+                      />
                     <span className="text-sm text-slate-300 whitespace-nowrap">seconds</span>
                   </div>
                 </div>
@@ -520,8 +570,8 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
                   onChange={(e) => handleGameModeChange(e.target.value)}
                   className="w-full px-4 py-3 sm:py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 min-h-12 sm:min-h-10 text-base sm:text-sm"
                 >
-                  <option value="impostor_gets_similar_word">Fake Word - Impostor gets similar word</option>
                   <option value="impostor_gets_nothing">Classic - Impostor gets nothing</option>
+                  <option value="impostor_gets_similar_word">Fake Word - Impostor gets similar word</option>
                 </select>
                 <p className="text-xs text-slate-400 mt-2">
                   In "Fake Word" mode, the impostor sees a similar word instead of knowing they're the impostor.

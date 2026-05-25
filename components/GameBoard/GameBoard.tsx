@@ -12,6 +12,7 @@ import {
   clearDevBroadcast,
 } from "@/services/gameService";
 import { useTimer } from "@/hooks/useTimer";
+import { getPlayerWord } from "@/services/wordService";
 import ChatBox from "@/components/ChatBox/ChatBox";
 
 interface GameBoardProps {
@@ -42,6 +43,8 @@ export default function GameBoard({
 
   const impostorIds = game.impostorIds?.length ? game.impostorIds : [game.impostorId];
   const isImpostor = currentPlayerId ? impostorIds.includes(currentPlayerId) : false;
+  const showFakeMode = game.settings.gameMode === "impostor_gets_similar_word";
+  const visualImpostor = isImpostor && !showFakeMode;
   const currentPlayer = currentPlayerId ? game.players[currentPlayerId] : null;
   const isCurrentPlayerAlive = !!currentPlayer?.isAlive;
   const timerEnabled = !!game.settings.roundTimerEnabled;
@@ -289,9 +292,9 @@ export default function GameBoard({
             <div className="text-center mb-6">
               <div className="text-sm text-slate-400 mb-2">Round {game.currentRound}</div>
               <div className="text-5xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent mb-4">
-                {isImpostor ? "?" : game.word}
+                {getPlayerWord(game.word, isImpostor, game.impostorWord)}
               </div>
-              {isImpostor && (
+              {visualImpostor && (
                 <div className="text-lg font-semibold text-red-400">
                   You are the Impostor! 🕵️
                 </div>

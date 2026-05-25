@@ -72,11 +72,11 @@ export default function ChatBox({ gameId }: ChatBoxProps) {
   };
 
   return (
-    <div className="bg-slate-800 rounded-2xl shadow-xl p-3 sm:p-4 h-full flex flex-col border border-slate-700">
-      <h3 className="font-bold text-white mb-3 sm:mb-4 text-lg sm:text-base">Chat</h3>
+    <div className="bg-slate-800 rounded-2xl shadow-xl p-4 h-full flex flex-col border border-slate-700">
+      <h3 className="font-bold text-white mb-4">Chat</h3>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-2 sm:space-y-3 mb-3 sm:mb-4 max-h-96">
+      <div className="flex-1 overflow-y-auto space-y-3 mb-4 max-h-96">
         {messages.length === 0 ? (
           <p className="text-slate-400 text-sm text-center py-8">
             No messages yet
@@ -106,7 +106,7 @@ export default function ChatBox({ gameId }: ChatBoxProps) {
       )}
 
       {/* Message Input */}
-      <form onSubmit={handleSendMessage} className="flex gap-2 flex-col sm:flex-row">
+      <form onSubmit={handleSendMessage} className="flex gap-2">
         <input
           type="text"
           value={messageInput}
@@ -115,13 +115,13 @@ export default function ChatBox({ gameId }: ChatBoxProps) {
             setStatusMessage("");
           }}
           placeholder="Type a message..."
-          className="flex-1 px-4 py-3 sm:px-3 sm:py-2 text-base sm:text-sm bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-12 sm:min-h-10"
+          className="flex-1 px-3 py-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           disabled={loading}
         />
         <button
           type="submit"
           disabled={loading || !messageInput.trim()}
-          className="px-4 py-3 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white text-base sm:text-sm rounded-lg transition disabled:bg-slate-600 min-h-12 sm:min-h-10 font-medium"
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition disabled:bg-slate-600"
         >
           Send
         </button>

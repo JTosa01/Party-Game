@@ -182,6 +182,23 @@ export async function startGame(gameId: string, word: string): Promise<void> {
     ? getSimilarWord(word)
     : undefined;
 
+  // Make it unlikely (but not impossible) for the first player in turn order
+  // to be an impostor when there are multiple impostors. We'll swap the
+  // first player with the first non-impostor most of the time, leaving a
+  // small chance (15%) that an impostor still goes first.
+  const firstPlayerIsImpostor = impostorIds.includes(shuffledPlayerIds[0]);
+  if (impostorCount > 1 && firstPlayerIsImpostor) {
+    const allowImpostorFirst = Math.random() < 0.15; // 15% chance
+    if (!allowImpostorFirst) {
+      const nonImpostorIndex = shuffledPlayerIds.findIndex((id) => !impostorIds.includes(id));
+      if (nonImpostorIndex > 0) {
+        const tmp = shuffledPlayerIds[0];
+        shuffledPlayerIds[0] = shuffledPlayerIds[nonImpostorIndex];
+        shuffledPlayerIds[nonImpostorIndex] = tmp;
+      }
+    }
+  }
+
   await updateDoc(gameRef, {
     status: "revealing",
     word,
