@@ -5,6 +5,7 @@ import { GameProvider } from "@/context/GameContext";
 import BackgroundMusic from "@/components/BackgroundMusic/BackgroundMusic";
 import DevBroadcast from "@/components/DevBroadcast/DevBroadcast";
 import { AuthProvider } from "@/context/AuthContext";
+import { Analytics } from "@vercel/analytics/next"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
