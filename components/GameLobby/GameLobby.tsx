@@ -2,7 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useGameContext } from "@/context/GameContext";
-import { startGame, getGame, onGameUpdate, kickPlayer, updatePlayerName } from "@/services/gameService";
+import {
+  startGame,
+  onGameUpdate,
+  kickPlayer,
+  updateGameSettings,
+  updatePlayerName,
+} from "@/services/gameService";
 import { getRandomWord } from "@/services/wordService";
 import { Game } from "@/types/game";
 
@@ -39,6 +45,7 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
 
   const isHost = currentPlayerId === gameData?.hostId;
   const playerCount = gameData ? Object.keys(gameData.players).length : 0;
+  const maxImpostorCount = playerCount >= 3 ? playerCount - 2 : 1;
 
   const handleStartGame = async () => {
     if (!isHost) return;
@@ -97,6 +104,49 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
   const handleCancelEditName = () => {
     setEditingPlayerId(null);
     setEditingName("");
+  };
+
+  const handleTimerEnabledChange = async (enabled: boolean) => {
+    if (!isHost) return;
+
+    try {
+      await updateGameSettings(gameId, { roundTimerEnabled: enabled });
+    } catch (err) {
+      setError("Failed to update timer setting");
+      console.error(err);
+    }
+  };
+
+  const handleTimerSecondsChange = async (value: string) => {
+    if (!isHost) return;
+
+    const seconds = Number(value);
+    if (!Number.isFinite(seconds)) return;
+
+    try {
+      await updateGameSettings(gameId, {
+        clueTimeLimit: Math.min(600, Math.max(10, seconds)),
+      });
+    } catch (err) {
+      setError("Failed to update timer length");
+      console.error(err);
+    }
+  };
+
+  const handleImpostorCountChange = async (value: string) => {
+    if (!isHost) return;
+
+    const count = Number(value);
+    if (!Number.isFinite(count)) return;
+
+    try {
+      await updateGameSettings(gameId, {
+        impostorCount: Math.min(maxImpostorCount, Math.max(1, count)),
+      });
+    } catch (err) {
+      setError("Failed to update impostor count");
+      console.error(err);
+    }
   };
 
   if (!gameData) {
@@ -247,19 +297,94 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
                 )}
               </div>
 
+              <div className="mb-4 rounded-lg border border-slate-600 bg-slate-700 p-4">
+                <label
+                  htmlFor="impostor-count"
+                  className="block text-sm font-medium text-slate-200 mb-2"
+                >
+                  Impostors
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    id="impostor-count"
+                    type="number"
+                    min={1}
+                    max={maxImpostorCount}
+                    value={Math.min(
+                      maxImpostorCount,
+                      Math.max(1, gameData.settings.impostorCount || 1)
+                    )}
+                    onChange={(e) => handleImpostorCountChange(e.target.value)}
+                    className="w-28 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-slate-300">
+                    max {maxImpostorCount}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-2">
+                  At least two non-impostors are required.
+                </p>
+              </div>
+
+              <div className="mb-4 rounded-lg border border-slate-600 bg-slate-700 p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <label
+                      htmlFor="round-timer-enabled"
+                      className="block text-sm font-medium text-slate-200"
+                    >
+                      Round Timer
+                    </label>
+                    <p className="text-xs text-slate-400">
+                      Automatically move to voting when time runs out.
+                    </p>
+                  </div>
+                  <input
+                    id="round-timer-enabled"
+                    type="checkbox"
+                    checked={!!gameData.settings.roundTimerEnabled}
+                    onChange={(e) => handleTimerEnabledChange(e.target.checked)}
+                    className="h-5 w-5 rounded border-slate-500 bg-slate-800 text-blue-600 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="mt-4">
+                  <label
+                    htmlFor="round-timer-seconds"
+                    className="block text-sm font-medium text-slate-200 mb-2"
+                  >
+                    Timer Length
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      id="round-timer-seconds"
+                      type="number"
+                      min={10}
+                      max={600}
+                      step={5}
+                      value={gameData.settings.clueTimeLimit}
+                      onChange={(e) => handleTimerSecondsChange(e.target.value)}
+                      disabled={!gameData.settings.roundTimerEnabled}
+                      className="w-28 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 disabled:text-slate-500"
+                    />
+                    <span className="text-sm text-slate-300">seconds</span>
+                  </div>
+                </div>
+              </div>
+
               {error && <div className="text-red-400 text-sm mb-4 bg-red-950 p-3 rounded border border-red-900">{error}</div>}
 
               <button
                 onClick={handleStartGame}
-                disabled={loading || playerCount < 2}
+                disabled={loading || playerCount < 3}
                 className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition disabled:bg-slate-600"
               >
                 {loading ? "Starting..." : `Start Game (${playerCount} players)`}
               </button>
 
-              {playerCount < 2 && (
+              {playerCount < 3 && (
                 <p className="text-yellow-400 text-sm mt-2">
-                  Need at least 2 players to start
+                  Need at least 3 players to start with impostors
                 </p>
               )}
             </div>

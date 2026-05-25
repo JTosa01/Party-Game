@@ -28,7 +28,8 @@ export default function RoundReveal({ gameId, game }: RoundRevealProps) {
   );
   const readyCount = activePlayers.filter((player) => player.hasConfirmedWord).length;
   const skipCount = activePlayers.filter((player) => player.votedToSkipWord).length;
-  const isImpostor = currentPlayerId === game.impostorId;
+  const impostorIds = game.impostorIds?.length ? game.impostorIds : [game.impostorId];
+  const isImpostor = currentPlayerId ? impostorIds.includes(currentPlayerId) : false;
   const hasConfirmed = !!currentPlayer?.hasConfirmedWord;
   const votedToSkipWord = !!currentPlayer?.votedToSkipWord;
 

@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { Game } from "@/types/game";
-import { submitVote, getVoteResults, updateGameStatus, endGame, getGame } from "@/services/gameService";
+import {
+  submitVote,
+  getVoteResults,
+  resolveCompletedVote,
+} from "@/services/gameService";
 import { useGameContext } from "@/context/GameContext";
-import { db } from "@/services/firebase";
-import { doc, writeBatch } from "firebase/firestore";
 
 interface VotingPanelProps {
   gameId: string;
@@ -18,25 +20,18 @@ export default function VotingPanel({
   game,
   onVotingComplete,
 }: VotingPanelProps) {
-  const { currentPlayerId, currentPlayerName } = useGameContext();
+  const { currentPlayerId } = useGameContext();
   const [selectedVote, setSelectedVote] = useState<string | null>(null);
   const [voteResults, setVoteResults] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [hasVoted, setHasVoted] = useState(false);
-  const [showResults, setShowResults] = useState(false);
 
   const alivePlayersWithoutCurrent = Object.values(game.players).filter(
     (p) => p.isAlive && p.id !== currentPlayerId
   );
-
-  useEffect(() => {
-    // Check if current player has voted
-    const currentPlayer = game.players[currentPlayerId!];
-    if (currentPlayer?.hasVoted) {
-      setHasVoted(true);
-    }
-  }, [game, currentPlayerId]);
+  const currentPlayer = currentPlayerId ? game.players[currentPlayerId] : null;
+  const hasVoted = !!currentPlayer?.hasVoted;
+  const canVote = !!currentPlayer?.isAlive;
 
   useEffect(() => {
     // Auto-load vote results periodically
@@ -48,61 +43,17 @@ export default function VotingPanel({
     return () => clearInterval(interval);
   }, [gameId]);
 
-  // Check if all players have voted and auto-transition to finished
+  // Check if all players have voted and resolve the elimination.
   useEffect(() => {
     const checkAllVoted = async () => {
       const alivePlayerCount = Object.values(game.players).filter(p => p.isAlive).length;
       const votedCount = Object.values(game.players).filter(p => p.isAlive && p.hasVoted).length;
 
       if (alivePlayerCount > 0 && votedCount === alivePlayerCount && votedCount > 0) {
-        // All alive players have voted, check results
         try {
-          const currentGame = await getGame(gameId);
-          if (currentGame && currentGame.status === "voting") {
-            const results = await getVoteResults(gameId);
-            const mostVotedId = Object.entries(results).sort((a, b) => b[1] - a[1])[0]?.[0];
-            
-            if (mostVotedId) {
-              // If "nobody" won, go back to playing phase for another round
-              if (mostVotedId === "nobody") {
-                // Reset votes for next round
-                const batch = writeBatch(db);
-                const gameRef = doc(db, "games", gameId);
-                
-                Object.keys(currentGame.players).forEach((playerId) => {
-                  batch.update(gameRef, {
-                    [`players.${playerId}.hasVoted`]: false,
-                    [`players.${playerId}.voteTarget`]: null,
-                  });
-                });
-                
-                batch.update(gameRef, {
-                  currentRound: currentGame.currentRound + 1,
-                  status: "playing",
-                });
-                
-                await batch.commit();
-              } else {
-                // Someone was voted out, end the game
-                const mostVotedName = game.players[mostVotedId]?.name || "Unknown";
-                await endGame(gameId, {
-                  impostorId: game.impostorId,
-                  impostorName: game.players[game.impostorId]?.name || "Unknown",
-                  impostorGuess: null,
-                  wasOuted: mostVotedId === game.impostorId,
-                  finalWord: game.word,
-                  votedForId: mostVotedId,
-                  votedForName: mostVotedName,
-                  duration: game.startedAt ? Date.now() - game.startedAt : 0,
-                  timestamp: Date.now(),
-                });
-
-                await updateGameStatus(gameId, "finished");
-              }
-            }
-          }
+          await resolveCompletedVote(gameId);
         } catch (err) {
-          console.error("Failed to end game:", err);
+          console.error("Failed to resolve vote:", err);
         }
       }
     };
@@ -111,7 +62,7 @@ export default function VotingPanel({
   }, [game, gameId]);
 
   const handleVote = async (targetId: string) => {
-    if (hasVoted || loading) return;
+    if (!canVote || hasVoted || loading) return;
 
     setLoading(true);
     setError("");
@@ -119,7 +70,6 @@ export default function VotingPanel({
     try {
       await submitVote(gameId, currentPlayerId!, targetId);
       setSelectedVote(targetId);
-      setHasVoted(true);
       onVotingComplete(targetId);
     } catch (err) {
       setError("Failed to submit vote");
@@ -145,6 +95,14 @@ export default function VotingPanel({
             Who do you think is the impostor?
           </p>
 
+          {!canVote && (
+            <div className="mb-6 bg-slate-700 border border-slate-600 rounded-lg p-4">
+              <p className="text-slate-300 text-center">
+                You have been voted out and cannot vote.
+              </p>
+            </div>
+          )}
+
           {/* Vote Results */}
           {Object.keys(voteResults).length > 0 && (
             <div className="mb-8 p-4 bg-slate-700 rounded-lg border border-slate-600">
@@ -153,7 +111,10 @@ export default function VotingPanel({
                 {Object.entries(voteResults)
                   .sort((a, b) => b[1] - a[1])
                   .map(([playerId, voteCount]) => {
-                    const playerName = game.players[playerId]?.name || "Unknown";
+                    const playerName =
+                      playerId === "nobody"
+                        ? "Nobody - Another Round"
+                        : game.players[playerId]?.name || "Unknown";
                     const isLeading = playerId === getMostVoted();
                     return (
                       <div
@@ -176,11 +137,11 @@ export default function VotingPanel({
             {/* Nobody Option */}
             <button
               onClick={() => handleVote("nobody")}
-              disabled={hasVoted || loading}
+              disabled={!canVote || hasVoted || loading}
               className={`w-full p-4 rounded-lg font-semibold transition border-2 ${
                 selectedVote === "nobody"
                   ? "bg-amber-600 text-white border-amber-500"
-                  : hasVoted
+                  : hasVoted || !canVote
                   ? "bg-slate-700 text-slate-400 cursor-not-allowed border-slate-600"
                   : "bg-slate-700 text-white hover:bg-amber-600 border-amber-600"
               }`}
@@ -198,11 +159,11 @@ export default function VotingPanel({
                 <button
                   key={player.id}
                   onClick={() => handleVote(player.id)}
-                  disabled={hasVoted || loading}
+                  disabled={!canVote || hasVoted || loading}
                   className={`w-full p-4 rounded-lg font-semibold transition ${
                     selectedVote === player.id
                       ? "bg-red-600 text-white border border-red-500"
-                      : hasVoted
+                      : hasVoted || !canVote
                       ? "bg-slate-700 text-slate-400 cursor-not-allowed border border-slate-600"
                       : "bg-slate-700 text-white hover:bg-red-600 border border-slate-600"
                   }`}

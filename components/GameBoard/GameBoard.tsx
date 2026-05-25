@@ -33,11 +33,16 @@ export default function GameBoard({
   const [timerEnded, setTimerEnded] = useState(false);
   const [votedToSkip, setVotedToSkip] = useState(false);
 
-  const isImpostor = currentPlayerId === game.impostorId;
+  const impostorIds = game.impostorIds?.length ? game.impostorIds : [game.impostorId];
+  const isImpostor = currentPlayerId ? impostorIds.includes(currentPlayerId) : false;
+  const currentPlayer = currentPlayerId ? game.players[currentPlayerId] : null;
+  const isCurrentPlayerAlive = !!currentPlayer?.isAlive;
+  const timerEnabled = !!game.settings.roundTimerEnabled;
   const timeLimit = game.settings.clueTimeLimit;
   const { seconds, isRunning } = useTimer(timeLimit, () => {
     setTimerEnded(true);
-  });
+  }, timerEnabled);
+  const roundIsActive = !timerEnabled || isRunning;
 
   // Check if player already voted to skip
   useEffect(() => {
@@ -68,7 +73,7 @@ export default function GameBoard({
 
   // Update game status to voting when timer ends
   useEffect(() => {
-    if (timerEnded && !isRunning) {
+    if (timerEnabled && timerEnded && !isRunning) {
       const updateStatus = async () => {
         try {
           await updateGameStatus(gameId, "voting");
@@ -79,7 +84,7 @@ export default function GameBoard({
       };
       updateStatus();
     }
-  }, [timerEnded, isRunning, gameId, onVotePhase]);
+  }, [timerEnabled, timerEnded, isRunning, gameId, onVotePhase]);
 
   // Subscribe to clues
   useEffect(() => {
@@ -172,13 +177,19 @@ export default function GameBoard({
 
             {/* Timer */}
             <div className="flex items-center justify-center mb-6">
-              <div
-                className={`text-4xl font-bold font-mono ${
-                  seconds > 10 ? "text-blue-400" : "text-red-400"
-                }`}
-              >
-                {String(seconds).padStart(2, "0")}s
-              </div>
+              {timerEnabled ? (
+                <div
+                  className={`text-4xl font-bold font-mono ${
+                    seconds > 10 ? "text-blue-400" : "text-red-400"
+                  }`}
+                >
+                  {String(seconds).padStart(2, "0")}s
+                </div>
+              ) : (
+                <div className="text-sm font-semibold text-slate-300 bg-slate-700 border border-slate-600 rounded-lg px-4 py-2">
+                  Timer Off
+                </div>
+              )}
             </div>
 
             {/* Players Count */}
@@ -223,7 +234,15 @@ export default function GameBoard({
           </div>
 
           {/* Clue Input */}
-          {!hasSubmittedClue && isRunning && (
+          {!isCurrentPlayerAlive && (
+            <div className="bg-slate-800 rounded-2xl shadow-xl p-6 border border-slate-700">
+              <p className="text-slate-300 font-semibold">
+                You have been voted out. You can keep watching the round.
+              </p>
+            </div>
+          )}
+
+          {isCurrentPlayerAlive && !hasSubmittedClue && roundIsActive && (
             <form onSubmit={handleSubmitClue} className="bg-slate-800 rounded-2xl shadow-xl p-6 border border-slate-700">
               <label className="block text-sm font-medium text-slate-200 mb-2">
                 Your Clue
@@ -260,7 +279,7 @@ export default function GameBoard({
           )}
 
           {/* Skip Discussion Vote */}
-          {isRunning && (
+          {isCurrentPlayerAlive && roundIsActive && (
             <div className="bg-slate-800 rounded-2xl shadow-xl p-6 border border-slate-700">
               <p className="text-sm text-slate-300 mb-4">
                 Want to move to voting? Vote to skip the discussion phase.
@@ -293,7 +312,7 @@ export default function GameBoard({
             </div>
           )}
 
-          {!isRunning && (
+          {timerEnabled && !isRunning && (
             <div className="bg-yellow-900 border border-yellow-700 rounded-lg p-4">
               <p className="text-yellow-300 font-semibold">
                 Time's up! Moving to voting phase...

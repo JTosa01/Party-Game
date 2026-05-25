@@ -32,7 +32,9 @@ export interface ChatMessage {
 
 export interface GameSettings {
   roundLimit: number;
+  roundTimerEnabled: boolean;
   clueTimeLimit: number; // seconds
+  impostorCount: number;
   gameMode: GameMode;
   wordListId: string;
 }
@@ -44,6 +46,7 @@ export interface Game {
   currentRound: number;
   word: string;
   impostorId: string;
+  impostorIds?: string[];
   players: Record<string, Player>;
   settings: GameSettings;
   createdAt: number;
@@ -56,6 +59,8 @@ export interface GameResult {
   gameId: string;
   impostorId: string;
   impostorName: string;
+  impostorIds?: string[];
+  impostorNames?: string;
   impostorGuess: string | null;
   wasOuted: boolean;
   finalWord: string;

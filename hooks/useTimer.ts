@@ -2,12 +2,21 @@
 
 import { useState, useEffect } from "react";
 
-export function useTimer(initialSeconds: number, onComplete?: () => void) {
+export function useTimer(
+  initialSeconds: number,
+  onComplete?: () => void,
+  enabled: boolean = true
+) {
   const [seconds, setSeconds] = useState(initialSeconds);
-  const [isRunning, setIsRunning] = useState(true);
+  const [isRunning, setIsRunning] = useState(enabled);
 
   useEffect(() => {
-    if (!isRunning || seconds <= 0) return;
+    setSeconds(initialSeconds);
+    setIsRunning(enabled);
+  }, [initialSeconds, enabled]);
+
+  useEffect(() => {
+    if (!enabled || !isRunning || seconds <= 0) return;
 
     const interval = setInterval(() => {
       setSeconds((prev) => {
@@ -21,15 +30,15 @@ export function useTimer(initialSeconds: number, onComplete?: () => void) {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isRunning, seconds, onComplete]);
+  }, [enabled, isRunning, seconds, onComplete]);
 
   const reset = () => {
     setSeconds(initialSeconds);
-    setIsRunning(true);
+    setIsRunning(enabled);
   };
 
   const pause = () => setIsRunning(false);
-  const resume = () => setIsRunning(true);
+  const resume = () => setIsRunning(enabled);
 
   return { seconds, isRunning, reset, pause, resume };
 }

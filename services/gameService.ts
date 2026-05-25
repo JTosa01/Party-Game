@@ -25,6 +25,7 @@ import {
   ChatMessage,
   Player,
   GameResult,
+  GameSettings,
 } from "@/types/game";
 
 // Generate a random 4-character game code
@@ -83,6 +84,22 @@ export async function createGame(
   return gameId;
 }
 
+function getImpostorIds(game: Game): string[] {
+  return game.impostorIds?.length ? game.impostorIds : game.impostorId ? [game.impostorId] : [];
+}
+
+function getGameOutcome(game: Game): "impostors_win" | "regulars_win" | null {
+  const impostorIds = new Set(getImpostorIds(game));
+  const alivePlayers = Object.values(game.players).filter((player) => player.isAlive);
+  const aliveImpostorCount = alivePlayers.filter((player) => impostorIds.has(player.id)).length;
+  const aliveRegularCount = alivePlayers.length - aliveImpostorCount;
+
+  if (aliveImpostorCount === 0) return "regulars_win";
+  if (aliveRegularCount === 0) return "impostors_win";
+
+  return null;
+}
+
 // Join a game
 export async function joinGame(
   gameId: string,
@@ -131,11 +148,18 @@ export async function startGame(gameId: string, word: string): Promise<void> {
   if (!game) throw new Error("Game not found");
 
   const playerIds = Object.keys(game.players);
-  const randomImpostorId =
-    playerIds[Math.floor(Math.random() * playerIds.length)];
+  if (playerIds.length < 3) {
+    throw new Error("At least 3 players are required to start");
+  }
 
   // Shuffle player IDs for turn order
   const shuffledPlayerIds = [...playerIds].sort(() => Math.random() - 0.5);
+  const maxImpostors = playerIds.length - 2;
+  const impostorCount = Math.min(
+    Math.max(1, game.settings.impostorCount || 1),
+    maxImpostors
+  );
+  const impostorIds = shuffledPlayerIds.slice(0, impostorCount);
   const playerUpdates = playerIds.reduce<Record<string, Player>>((players, playerId) => {
     players[playerId] = {
       ...game.players[playerId],
@@ -151,7 +175,8 @@ export async function startGame(gameId: string, word: string): Promise<void> {
   await updateDoc(gameRef, {
     status: "revealing",
     word,
-    impostorId: randomImpostorId,
+    impostorId: impostorIds[0],
+    impostorIds,
     currentRound: 0,
     players: playerUpdates,
     turnOrder: shuffledPlayerIds,
@@ -384,6 +409,7 @@ export async function resetGameToLobby(
     currentRound: 0,
     word: "",
     impostorId: "",
+    impostorIds: [],
     players: {
       [playerId]: player,
     },
@@ -396,6 +422,81 @@ export async function resetGameToLobby(
     deleteCollectionDocs(`games/${gameId}/clues`),
     deleteCollectionDocs(`games/${gameId}/chat`),
   ]);
+}
+
+export async function resolveCompletedVote(gameId: string): Promise<void> {
+  const gameRef = doc(db, "games", gameId);
+
+  await runTransaction(db, async (transaction) => {
+    const gameSnap = await transaction.get(gameRef);
+    if (!gameSnap.exists()) return;
+
+    const game = gameSnap.data() as Game;
+    if (game.status !== "voting") return;
+
+    const alivePlayers = Object.values(game.players).filter((player) => player.isAlive);
+    const allVoted =
+      alivePlayers.length > 0 &&
+      alivePlayers.every((player) => player.hasVoted);
+
+    if (!allVoted) return;
+
+    const voteCounts: Record<string, number> = {};
+    alivePlayers.forEach((player) => {
+      if (player.voteTarget) {
+        voteCounts[player.voteTarget] = (voteCounts[player.voteTarget] || 0) + 1;
+      }
+    });
+
+    const mostVotedId = Object.entries(voteCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+    if (!mostVotedId) return;
+
+    const eliminatedPlayers = Object.fromEntries(
+      Object.entries(game.players).map(([playerId, player]) => [
+        playerId,
+        {
+          ...player,
+          ...(playerId === mostVotedId && mostVotedId !== "nobody"
+            ? { isAlive: false }
+            : {}),
+        },
+      ])
+    ) as Record<string, Player>;
+
+    const nextGame: Game = {
+      ...game,
+      players: eliminatedPlayers,
+    };
+    const outcome = getGameOutcome(nextGame);
+
+    if (outcome) {
+      transaction.update(gameRef, {
+        players: eliminatedPlayers,
+        status: "finished",
+      });
+      return;
+    }
+
+    const nextPlayers = Object.fromEntries(
+      Object.entries(eliminatedPlayers).map(([playerId, player]) => [
+        playerId,
+        {
+          ...player,
+          hasVoted: false,
+          voteTarget: null,
+          votedToSkip: false,
+        },
+      ])
+    ) as Record<string, Player>;
+
+    transaction.update(gameRef, {
+      players: nextPlayers,
+      currentRound: game.currentRound + 1,
+      status: "playing",
+      turnOrder: (game.turnOrder || []).filter((playerId) => nextPlayers[playerId]?.isAlive),
+      currentTurnIndex: 0,
+    });
+  });
 }
 
 // Add chat message
@@ -462,6 +563,19 @@ export async function updateGameStatus(
 ): Promise<void> {
   const gameRef = doc(db, "games", gameId);
   await updateDoc(gameRef, { status });
+}
+
+// Update host-configurable game settings while in the lobby.
+export async function updateGameSettings(
+  gameId: string,
+  settings: Partial<GameSettings>
+): Promise<void> {
+  const gameRef = doc(db, "games", gameId);
+  const updates = Object.fromEntries(
+    Object.entries(settings).map(([key, value]) => [`settings.${key}`, value])
+  );
+
+  await updateDoc(gameRef, updates);
 }
 
 // Kick a player from the game (only during setup)

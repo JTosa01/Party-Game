@@ -29,7 +29,9 @@ export default function Home() {
       const playerId = `player_${Date.now()}`;
       const defaultSettings = {
         roundLimit: 3,
+        roundTimerEnabled: false,
         clueTimeLimit: 60,
+        impostorCount: 1,
         gameMode: "standard" as const,
         wordListId: "default",
       };
