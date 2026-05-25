@@ -53,6 +53,14 @@ export interface Game {
   startedAt?: number;
   turnOrder?: string[]; // Array of player IDs in turn order
   currentTurnIndex?: number; // Index of current player in turn order
+  devBroadcast?: {
+    message: string;
+    playerId: string;
+    playerName: string;
+    targetPlayerId: string;
+    targetPlayerName: string;
+    timestamp: number;
+  };
 }
 
 export interface GameResult {

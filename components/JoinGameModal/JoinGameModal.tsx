@@ -79,7 +79,7 @@ export default function JoinGameModal({ gameId, game }: JoinGameModalProps) {
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
               placeholder="Enter your name"
-              className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 md:py-2 bg-slate-700 border border-slate-600 rounded-lg text-base md:text-sm text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               disabled={loading}
               autoFocus
             />
@@ -94,7 +94,7 @@ export default function JoinGameModal({ gameId, game }: JoinGameModalProps) {
           <button
             type="submit"
             disabled={loading || !playerName.trim()}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition disabled:bg-slate-600"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 md:py-3 rounded-lg font-semibold transition disabled:bg-slate-600 min-h-12 md:min-h-10"
           >
             {loading ? "Joining..." : "Join Game"}
           </button>

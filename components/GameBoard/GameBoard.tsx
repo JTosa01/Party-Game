@@ -8,6 +8,8 @@ import {
   onCluesUpdate,
   updateGameStatus,
   voteToSkipDiscussion,
+  sendDevBroadcast,
+  clearDevBroadcast,
 } from "@/services/gameService";
 import { useTimer } from "@/hooks/useTimer";
 import ChatBox from "@/components/ChatBox/ChatBox";
@@ -32,6 +34,11 @@ export default function GameBoard({
   const [unsubscribe, setUnsubscribe] = useState<(() => void) | null>(null);
   const [timerEnded, setTimerEnded] = useState(false);
   const [votedToSkip, setVotedToSkip] = useState(false);
+  const [devModeEnabled, setDevModeEnabled] = useState(false);
+  const [devTargetId, setDevTargetId] = useState<string | null>(null);
+  const [devMessage, setDevMessage] = useState("");
+  const [sendingDevMessage, setSendingDevMessage] = useState(false);
+  const [devStatusMessage, setDevStatusMessage] = useState("");
 
   const impostorIds = game.impostorIds?.length ? game.impostorIds : [game.impostorId];
   const isImpostor = currentPlayerId ? impostorIds.includes(currentPlayerId) : false;
@@ -86,6 +93,23 @@ export default function GameBoard({
     }
   }, [timerEnabled, timerEnded, isRunning, gameId, onVotePhase]);
 
+  useEffect(() => {
+    if (!currentPlayerId) return;
+
+    const storageKey = `devMode:${currentPlayerId}`;
+    setDevModeEnabled(localStorage.getItem(storageKey) === "true");
+
+    const handleDevModeUnlocked = (event: Event) => {
+      const customEvent = event as CustomEvent<{ playerId?: string }>;
+      if (customEvent.detail?.playerId === currentPlayerId) {
+        setDevModeEnabled(true);
+      }
+    };
+
+    window.addEventListener("dev-mode-unlocked", handleDevModeUnlocked);
+    return () => window.removeEventListener("dev-mode-unlocked", handleDevModeUnlocked);
+  }, [currentPlayerId]);
+
   // Subscribe to clues
   useEffect(() => {
     const unsub = onCluesUpdate(gameId, game.currentRound, (updatedClues) => {
@@ -127,6 +151,53 @@ export default function GameBoard({
     }
   };
 
+  const handleSelectDevTarget = (playerId: string) => {
+    if (!devModeEnabled || !roundIsActive) return;
+    setDevTargetId(playerId);
+    setDevMessage("");
+    setDevStatusMessage("");
+  };
+
+  const handleSendDevMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!devTargetId || !devMessage.trim() || !currentPlayerId || !currentPlayerName) return;
+
+    const targetPlayer = game.players[devTargetId];
+    if (!targetPlayer) return;
+
+    setSendingDevMessage(true);
+    setError("");
+    setDevStatusMessage("");
+
+    try {
+      await sendDevBroadcast(
+        gameId,
+        currentPlayerId,
+        currentPlayerName,
+        targetPlayer.id,
+        targetPlayer.name,
+        devMessage.trim()
+      );
+
+      setDevStatusMessage(`Message sent to ${targetPlayer.name}.`);
+      setDevTargetId(null);
+      setDevMessage("");
+
+      window.setTimeout(() => {
+        clearDevBroadcast(gameId).catch((err) => {
+          console.error("Failed to clear dev broadcast:", err);
+        });
+      }, 3000);
+    } catch (err) {
+      setError("Failed to send dev message");
+      console.error(err);
+    } finally {
+      setSendingDevMessage(false);
+    }
+  };
+
+  const devTarget = devTargetId ? game.players[devTargetId] : null;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-4">
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -136,21 +207,30 @@ export default function GameBoard({
           {game.turnOrder && game.turnOrder.length > 0 && (
             <div className="bg-slate-800 rounded-2xl shadow-xl p-6 border border-slate-700">
               <h3 className="text-sm font-semibold text-slate-300 mb-3">Turn Order</h3>
+              {devModeEnabled && roundIsActive && (
+                <p className="text-xs text-cyan-300 mb-3">
+                  Dev mode enabled. Click a player name to send a page message.
+                </p>
+              )}
               <div className="flex gap-2 flex-wrap">
                 {game.turnOrder.map((playerId, index) => {
                   const player = game.players[playerId];
                   const isCurrentTurn = index === game.currentTurnIndex;
                   const isCurrentPlayer = playerId === currentPlayerId;
+                  const canClickDevTarget = devModeEnabled && roundIsActive;
                   
                   return (
                     <div
                       key={playerId}
+                      onClick={() => canClickDevTarget && handleSelectDevTarget(playerId)}
                       className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
                         isCurrentTurn
                           ? "bg-yellow-600 text-white ring-2 ring-yellow-400"
                           : "bg-slate-700 text-slate-200 border border-slate-600"
-                      } ${isCurrentPlayer ? "ring-2 ring-blue-500" : ""}`}
-                      title={isCurrentTurn ? "Currently giving a clue" : ""}
+                      } ${isCurrentPlayer ? "ring-2 ring-blue-500" : ""} ${
+                        canClickDevTarget ? "cursor-pointer hover:border-cyan-400" : ""
+                      }`}
+                      title={isCurrentTurn ? "Currently giving a clue" : canClickDevTarget ? "Click to send a dev page message" : ""}
                     >
                       {isCurrentTurn && "→ "}
                       {player?.name || "Unknown"}
@@ -158,6 +238,49 @@ export default function GameBoard({
                   );
                 })}
               </div>
+
+              {devTarget && (
+                <form
+                  onSubmit={handleSendDevMessage}
+                  className="mt-4 rounded-2xl border border-cyan-700 bg-cyan-950/20 p-4"
+                >
+                  <p className="text-sm text-cyan-100 mb-3">
+                    Sending a page message to {devTarget.name}.
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={devMessage}
+                      onChange={(e) => setDevMessage(e.target.value)}
+                      placeholder="Type the page message"
+                      className="flex-1 px-4 py-2 bg-slate-800 border border-cyan-800 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-cyan-500"
+                      disabled={sendingDevMessage}
+                      autoFocus
+                    />
+                    <button
+                      type="submit"
+                      disabled={sendingDevMessage || !devMessage.trim()}
+                      className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition disabled:bg-slate-600"
+                    >
+                      {sendingDevMessage ? "Sending..." : "Send"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDevTargetId(null)}
+                      disabled={sendingDevMessage}
+                      className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition disabled:bg-slate-600"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  {devStatusMessage && (
+                    <p className="text-xs text-cyan-200 mt-2">{devStatusMessage}</p>
+                  )}
+                  {error && (
+                    <p className="text-xs text-red-400 mt-2">{error}</p>
+                  )}
+                </form>
+              )}
             </div>
           )}
 

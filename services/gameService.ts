@@ -152,14 +152,18 @@ export async function startGame(gameId: string, word: string): Promise<void> {
     throw new Error("At least 3 players are required to start");
   }
 
-  // Shuffle player IDs for turn order
-  const shuffledPlayerIds = [...playerIds].sort(() => Math.random() - 0.5);
   const maxImpostors = playerIds.length - 2;
   const impostorCount = Math.min(
     Math.max(1, game.settings.impostorCount || 1),
     maxImpostors
   );
-  const impostorIds = shuffledPlayerIds.slice(0, impostorCount);
+  
+  // Randomly select impostors from all players
+  const shuffledForImpostors = [...playerIds].sort(() => Math.random() - 0.5);
+  const impostorIds = shuffledForImpostors.slice(0, impostorCount);
+  
+  // Separately shuffle player IDs for turn order
+  const shuffledPlayerIds = [...playerIds].sort(() => Math.random() - 0.5);
   const playerUpdates = playerIds.reduce<Record<string, Player>>((players, playerId) => {
     players[playerId] = {
       ...game.players[playerId],
@@ -512,6 +516,34 @@ export async function sendChatMessage(
     playerName,
     message,
     timestamp: Date.now(),
+  });
+}
+
+export async function sendDevBroadcast(
+  gameId: string,
+  playerId: string,
+  playerName: string,
+  targetPlayerId: string,
+  targetPlayerName: string,
+  message: string
+): Promise<void> {
+  const gameRef = doc(db, "games", gameId);
+  await updateDoc(gameRef, {
+    devBroadcast: {
+      message,
+      playerId,
+      playerName,
+      targetPlayerId,
+      targetPlayerName,
+      timestamp: Date.now(),
+    },
+  });
+}
+
+export async function clearDevBroadcast(gameId: string): Promise<void> {
+  const gameRef = doc(db, "games", gameId);
+  await updateDoc(gameRef, {
+    devBroadcast: deleteField(),
   });
 }
 

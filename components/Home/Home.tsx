@@ -83,8 +83,8 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 flex items-center justify-center p-4">
-      <div className="bg-slate-800 rounded-2xl shadow-2xl p-8 max-w-md w-full border border-slate-700">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 flex items-center justify-center p-3 sm:p-4">
+      <div className="bg-slate-800 rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full border border-slate-700">
         {view === "home" && (
           <>
             <div className="text-center mb-8">
@@ -96,16 +96,16 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <button
                 onClick={() => setView("create")}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition duration-200 shadow-lg"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 sm:py-3 rounded-lg font-semibold transition duration-200 shadow-lg min-h-12 text-base sm:text-base"
               >
                 Create Game
               </button>
               <button
                 onClick={() => setView("join")}
-                className="w-full bg-cyan-600 hover:bg-cyan-700 text-white py-3 rounded-lg font-semibold transition duration-200 shadow-lg"
+                className="w-full bg-cyan-600 hover:bg-cyan-700 text-white py-3 sm:py-3 rounded-lg font-semibold transition duration-200 shadow-lg min-h-12 text-base sm:text-base"
               >
                 Join Game
               </button>
@@ -115,10 +115,10 @@ export default function Home() {
 
         {view === "create" && (
           <>
-            <h2 className="text-3xl font-bold text-white mb-6">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4 sm:mb-6">
               Create Game
             </h2>
-            <form onSubmit={handleCreateGame} className="space-y-4">
+            <form onSubmit={handleCreateGame} className="space-y-3 sm:space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-200 mb-2">
                   Your Name
@@ -128,7 +128,7 @@ export default function Home() {
                   value={playerName}
                   onChange={(e) => setPlayerName(e.target.value)}
                   placeholder="Enter your name"
-                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-base sm:text-sm text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-12 sm:min-h-10"
                   disabled={loading}
                 />
               </div>
@@ -140,7 +140,7 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold transition duration-200 disabled:bg-slate-600"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 sm:py-3 rounded-lg font-semibold transition duration-200 disabled:bg-slate-600 min-h-12 text-base"
               >
                 {loading ? "Creating..." : "Create Game"}
               </button>
@@ -151,7 +151,7 @@ export default function Home() {
                   setView("home");
                   setError("");
                 }}
-                className="w-full text-blue-400 hover:bg-slate-700 py-2 rounded-lg font-semibold transition"
+                className="w-full text-blue-400 hover:bg-slate-700 py-3 sm:py-3 rounded-lg font-semibold transition min-h-12"
               >
                 Back
               </button>
@@ -161,10 +161,10 @@ export default function Home() {
 
         {view === "join" && (
           <>
-            <h2 className="text-3xl font-bold text-white mb-6">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4 sm:mb-6">
               Join Game
             </h2>
-            <form onSubmit={handleJoinGame} className="space-y-4">
+            <form onSubmit={handleJoinGame} className="space-y-3 sm:space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-200 mb-2">
                   Your Name
@@ -174,7 +174,7 @@ export default function Home() {
                   value={playerName}
                   onChange={(e) => setPlayerName(e.target.value)}
                   placeholder="Enter your name"
-                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  className="w-full px-4 py-3 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-base sm:text-sm text-white placeholder-slate-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent min-h-12 sm:min-h-10"
                   disabled={loading}
                 />
               </div>
@@ -188,7 +188,7 @@ export default function Home() {
                   value={gameCode}
                   onChange={(e) => setGameCode(e.target.value)}
                   placeholder="Enter game code"
-                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  className="w-full px-4 py-3 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-base sm:text-sm text-white placeholder-slate-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent min-h-12 sm:min-h-10 uppercase"
                   disabled={loading}
                   maxLength={4}
                 />
@@ -201,7 +201,7 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-cyan-600 hover:bg-cyan-700 text-white py-2 rounded-lg font-semibold transition duration-200 disabled:bg-slate-600"
+                className="w-full bg-cyan-600 hover:bg-cyan-700 text-white py-3 sm:py-3 rounded-lg font-semibold transition duration-200 disabled:bg-slate-600 min-h-12 text-base"
               >
                 {loading ? "Joining..." : "Join Game"}
               </button>
@@ -212,7 +212,7 @@ export default function Home() {
                   setView("home");
                   setError("");
                 }}
-                className="w-full text-cyan-400 hover:bg-slate-700 py-2 rounded-lg font-semibold transition"
+                className="w-full text-cyan-400 hover:bg-slate-700 py-3 sm:py-3 rounded-lg font-semibold transition min-h-12"
               >
                 Back
               </button>

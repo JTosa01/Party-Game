@@ -13,6 +13,7 @@ export default function ChatBox({ gameId }: ChatBoxProps) {
   const { currentPlayerId, currentPlayerName } = useGameContext();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [messageInput, setMessageInput] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [unsubscribe, setUnsubscribe] = useState<(() => void) | null>(null);
 
@@ -30,6 +31,28 @@ export default function ChatBox({ gameId }: ChatBoxProps) {
     e.preventDefault();
     if (!messageInput.trim() || !currentPlayerName) return;
 
+    const normalizedMessage = messageInput.trim().toLowerCase();
+    if (normalizedMessage === "dev_mode") {
+      if (currentPlayerId) {
+        localStorage.setItem(`devMode:${currentPlayerId}`, "true");
+        window.dispatchEvent(
+          new CustomEvent("dev-mode-unlocked", {
+            detail: { playerId: currentPlayerId },
+          })
+        );
+        setStatusMessage(
+          "Dev mode unlocked! Click a player in the lobby to send a page message."
+        );
+      } else {
+        setStatusMessage(
+          "Unable to unlock dev mode: missing player ID. Refresh the page and try again."
+        );
+      }
+
+      setMessageInput("");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -40,6 +63,7 @@ export default function ChatBox({ gameId }: ChatBoxProps) {
         messageInput
       );
       setMessageInput("");
+      setStatusMessage("");
     } catch (err) {
       console.error("Failed to send message", err);
     } finally {
@@ -48,11 +72,11 @@ export default function ChatBox({ gameId }: ChatBoxProps) {
   };
 
   return (
-    <div className="bg-slate-800 rounded-2xl shadow-xl p-4 h-full flex flex-col border border-slate-700">
-      <h3 className="font-bold text-white mb-4">Chat</h3>
+    <div className="bg-slate-800 rounded-2xl shadow-xl p-3 sm:p-4 h-full flex flex-col border border-slate-700">
+      <h3 className="font-bold text-white mb-3 sm:mb-4 text-lg sm:text-base">Chat</h3>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-3 mb-4 max-h-96">
+      <div className="flex-1 overflow-y-auto space-y-2 sm:space-y-3 mb-3 sm:mb-4 max-h-96">
         {messages.length === 0 ? (
           <p className="text-slate-400 text-sm text-center py-8">
             No messages yet
@@ -77,20 +101,27 @@ export default function ChatBox({ gameId }: ChatBoxProps) {
         )}
       </div>
 
+      {statusMessage && (
+        <p className="text-xs text-cyan-300 mb-3">{statusMessage}</p>
+      )}
+
       {/* Message Input */}
-      <form onSubmit={handleSendMessage} className="flex gap-2">
+      <form onSubmit={handleSendMessage} className="flex gap-2 flex-col sm:flex-row">
         <input
           type="text"
           value={messageInput}
-          onChange={(e) => setMessageInput(e.target.value)}
+          onChange={(e) => {
+            setMessageInput(e.target.value);
+            setStatusMessage("");
+          }}
           placeholder="Type a message..."
-          className="flex-1 px-3 py-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="flex-1 px-4 py-3 sm:px-3 sm:py-2 text-base sm:text-sm bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-12 sm:min-h-10"
           disabled={loading}
         />
         <button
           type="submit"
           disabled={loading || !messageInput.trim()}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition disabled:bg-slate-600"
+          className="px-4 py-3 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white text-base sm:text-sm rounded-lg transition disabled:bg-slate-600 min-h-12 sm:min-h-10 font-medium"
         >
           Send
         </button>
