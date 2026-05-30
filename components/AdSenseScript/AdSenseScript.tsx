@@ -1,3 +1,5 @@
+'use client';
+
 export default function AdSenseScript() {
   const adSenseId = process.env.NEXT_PUBLIC_GOOGLE_ADSENSE_ID;
 

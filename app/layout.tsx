@@ -7,6 +7,7 @@ import DevBroadcast from "@/components/DevBroadcast/DevBroadcast";
 import { AuthProvider } from "@/context/AuthContext";
 import { Analytics } from "@vercel/analytics/next"
 import AdSenseScript from "@/components/AdSenseScript/AdSenseScript";
+import AdSidebar from "@/components/AdSidebar/AdSidebar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -46,6 +47,7 @@ export default function RootLayout({
         <AdSenseScript />
       </head>
       <body className="min-h-full flex flex-row">
+        <AdSidebar position="left" adSlot="1" />
         <AuthProvider>
           <GameProvider>
             <main className="flex-1 flex flex-col">
@@ -55,6 +57,7 @@ export default function RootLayout({
             </main>
           </GameProvider>
         </AuthProvider>
+        <AdSidebar position="right" adSlot="2" />
       </body>
     </html>
   );
