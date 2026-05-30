@@ -22,6 +22,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Impostor Game",
   description: "Play the Impostor game with your friends online",
+  other: {
+    "google-adsense-account": "ca-pub-6591949608570691",
+  },
 };
 
 // Next.js now expects viewport configuration to be exported via `viewport`.
@@ -44,6 +47,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
+        <meta name="google-adsense-account" content="ca-pub-6591949608570691" />
         <AdSenseScript />
       </head>
       <body className="min-h-full flex flex-row">
