@@ -8,6 +8,12 @@ interface AdSenseProps {
   fullWidth?: boolean;
 }
 
+declare global {
+  interface Window {
+    adsbygoogle?: unknown[];
+  }
+}
+
 export default function GoogleAdSense({ 
   adSlot, 
   adFormat = 'auto',
