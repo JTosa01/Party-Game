@@ -28,7 +28,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const setCurrentPlayer = useCallback((id: string, name: string) => {
     setCurrentPlayerId(id);
     setCurrentPlayerName(name);
-    localStorage.setItem("playerId", id);
     localStorage.setItem("playerName", name);
   }, []);
 
@@ -39,12 +38,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("gameId");
   }, []);
 
-  // Restore player info from localStorage on mount
+  // Restore player name from localStorage on mount
   useEffect(() => {
-    const savedPlayerId = localStorage.getItem("playerId");
     const savedPlayerName = localStorage.getItem("playerName");
-    if (savedPlayerId && savedPlayerName) {
-      setCurrentPlayerId(savedPlayerId);
+    if (savedPlayerName) {
       setCurrentPlayerName(savedPlayerName);
     }
   }, []);

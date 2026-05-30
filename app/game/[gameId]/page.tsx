@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useGameContext } from "@/context/GameContext";
+import { useAuth } from "@/context/AuthContext";
 import { onGameUpdate, resetGameToLobby } from "@/services/gameService";
 import GameLobby from "@/components/GameLobby/GameLobby";
 import RoundReveal from "@/components/RoundReveal/RoundReveal";
@@ -16,6 +17,7 @@ export default function GamePage() {
   const router = useRouter();
   const gameId = params.gameId as string;
   const { game, setGame, currentPlayerId, currentPlayerName, setCurrentPlayer } = useGameContext();
+  const { userId, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [unsubscribe, setUnsubscribe] = useState<(() => void) | null>(null);
@@ -40,7 +42,14 @@ export default function GamePage() {
     return () => unsub();
   }, [gameId, setGame]);
 
-  if (loading) {
+  // Ensure currentPlayerId is set from auth
+  useEffect(() => {
+    if (userId && !currentPlayerId) {
+      setCurrentPlayer(userId, currentPlayerName || "Player");
+    }
+  }, [userId, currentPlayerId, currentPlayerName, setCurrentPlayer]);
+
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
         <div className="text-white text-center">
@@ -79,10 +88,15 @@ export default function GamePage() {
   }
 
   const handlePlayAgain = async () => {
-    const playerId = currentPlayerId || `player_${Date.now()}`;
+    const playerId = currentPlayerId || userId;
+    if (!playerId) {
+      console.error("No player ID available");
+      return;
+    }
+
     const playerName =
       currentPlayerName ||
-      (currentPlayerId ? game.players[currentPlayerId]?.name : null) ||
+      (playerId ? game.players[playerId]?.name : null) ||
       "Player";
 
     await resetGameToLobby(gameId, playerId, playerName);

@@ -8,6 +8,8 @@ import {
   getAuth,
   Auth,
   connectAuthEmulator,
+  signInAnonymously,
+  User,
 } from "firebase/auth";
 
 const firebaseConfig = {
@@ -35,5 +37,16 @@ export const auth: Auth = getAuth(app);
 //     // Emulator already connected
 //   }
 // }
+
+/**
+ * Sign in anonymously if not already authenticated
+ */
+export async function ensureAnonymousAuth(): Promise<User> {
+  if (auth.currentUser) {
+    return auth.currentUser;
+  }
+  const result = await signInAnonymously(auth);
+  return result.user;
+}
 
 export default app;

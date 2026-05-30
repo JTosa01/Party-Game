@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useGameContext } from "@/context/GameContext";
+import { useAuth } from "@/context/AuthContext";
 import { joinGame } from "@/services/gameService";
 import { Game } from "@/types/game";
 
@@ -12,6 +13,7 @@ interface JoinGameModalProps {
 
 export default function JoinGameModal({ gameId, game }: JoinGameModalProps) {
   const { currentPlayerName, setCurrentPlayer } = useGameContext();
+  const { userId } = useAuth();
   const [playerName, setPlayerName] = useState(currentPlayerName || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -22,14 +24,17 @@ export default function JoinGameModal({ gameId, game }: JoinGameModalProps) {
       setError("Please enter your name");
       return;
     }
+    if (!userId) {
+      setError("Authentication failed. Please refresh the page.");
+      return;
+    }
 
     setLoading(true);
     setError("");
 
     try {
-      const playerId = `player_${Date.now()}`;
-      await joinGame(gameId, playerId, playerName);
-      setCurrentPlayer(playerId, playerName);
+      await joinGame(gameId, userId, playerName);
+      setCurrentPlayer(userId, playerName);
       // Game will update via real-time listener
     } catch (err: any) {
       const errorMessage = err?.message || String(err);

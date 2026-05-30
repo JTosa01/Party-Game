@@ -6,6 +6,7 @@ import BackgroundMusic from "@/components/BackgroundMusic/BackgroundMusic";
 import DevBroadcast from "@/components/DevBroadcast/DevBroadcast";
 import { AuthProvider } from "@/context/AuthContext";
 import { Analytics } from "@vercel/analytics/next"
+import AdSenseScript from "@/components/AdSenseScript/AdSenseScript";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,12 +42,17 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <head>
+        <AdSenseScript />
+      </head>
+      <body className="min-h-full flex flex-row">
         <AuthProvider>
           <GameProvider>
-            {children}
-            <DevBroadcast />
-            <BackgroundMusic />
+            <main className="flex-1 flex flex-col">
+              {children}
+              <DevBroadcast />
+              <BackgroundMusic />
+            </main>
           </GameProvider>
         </AuthProvider>
       </body>

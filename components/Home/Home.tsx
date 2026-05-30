@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import { useGameContext } from "@/context/GameContext";
+import { useAuth } from "@/context/AuthContext";
 import { createGame, joinGame } from "@/services/gameService";
 import { getRandomWord } from "@/services/wordService";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
   const router = useRouter();
-  const { setCurrentPlayer, setGame } = useGameContext();
+  const { setCurrentPlayer } = useGameContext();
+  const { userId, loading: authLoading, error: authError } = useAuth();
   const [view, setView] = useState<"home" | "create" | "join">("home");
   const [playerName, setPlayerName] = useState("");
   const [gameCode, setGameCode] = useState("");
@@ -21,12 +23,15 @@ export default function Home() {
       setError("Please enter your name");
       return;
     }
+    if (!userId) {
+      setError("Authentication failed. Please refresh the page.");
+      return;
+    }
 
     setLoading(true);
     setError("");
 
     try {
-      const playerId = `player_${Date.now()}`;
       const defaultSettings = {
         roundLimit: 3,
         roundTimerEnabled: false,
@@ -36,8 +41,8 @@ export default function Home() {
         wordListId: "default",
       };
 
-      const gameId = await createGame(playerId, playerName, defaultSettings);
-      setCurrentPlayer(playerId, playerName);
+      const gameId = await createGame(userId, playerName, defaultSettings);
+      setCurrentPlayer(userId, playerName);
       localStorage.setItem("gameId", gameId);
 
       router.push(`/game/${gameId}`);
@@ -63,14 +68,17 @@ export default function Home() {
       setError("Please enter your name and game code");
       return;
     }
+    if (!userId) {
+      setError("Authentication failed. Please refresh the page.");
+      return;
+    }
 
     setLoading(true);
     setError("");
 
     try {
-      const playerId = `player_${Date.now()}`;
-      await joinGame(gameCode, playerId, playerName);
-      setCurrentPlayer(playerId, playerName);
+      await joinGame(gameCode, userId, playerName);
+      setCurrentPlayer(userId, playerName);
       localStorage.setItem("gameId", gameCode);
 
       router.push(`/game/${gameCode}`);
@@ -81,6 +89,28 @@ export default function Home() {
       setLoading(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 flex items-center justify-center p-3 sm:p-4">
+        <div className="bg-slate-800 rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full border border-slate-700 text-center">
+          <p className="text-slate-300">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (authError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 flex items-center justify-center p-3 sm:p-4">
+        <div className="bg-slate-800 rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full border border-slate-700">
+          <div className="text-red-400 text-sm bg-red-950 p-3 rounded-lg border border-red-900">
+            Auth Error: {authError}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 flex items-center justify-center p-3 sm:p-4">
