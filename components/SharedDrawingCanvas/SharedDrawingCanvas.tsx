@@ -70,33 +70,40 @@ export default function SharedDrawingCanvas({
     }
   }, [accumulatedData]);
 
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const getCoords = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const clientX = "clientX" in e ? e.clientX : e.touches[0].clientX;
+    const clientY = "clientY" in e ? e.clientY : e.touches[0].clientY;
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  };
+
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     if (drawingLocked) return;
+    e.preventDefault();
+    const coords = getCoords(e);
+    if (!coords) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
 
     const ctx = canvas.getContext("2d");
     if (ctx) {
       ctx.beginPath();
-      ctx.moveTo(x, y);
+      ctx.moveTo(coords.x, coords.y);
       setIsDrawing(true);
     }
   };
 
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     if (!isDrawing || drawingLocked) return;
+    e.preventDefault();
+    const coords = getCoords(e);
+    if (!coords) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
 
     const ctx = canvas.getContext("2d");
     if (ctx) {
@@ -104,13 +111,14 @@ export default function SharedDrawingCanvas({
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.strokeStyle = strokeColor;
-      ctx.lineTo(x, y);
+      ctx.lineTo(coords.x, coords.y);
       ctx.stroke();
       if (!hasDrawn) setHasDrawn(true);
     }
   };
 
-  const stopDrawing = () => {
+  const stopDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
     setIsDrawing(false);
   };
 
@@ -155,6 +163,9 @@ export default function SharedDrawingCanvas({
           onMouseMove={draw}
           onMouseUp={stopDrawing}
           onMouseLeave={stopDrawing}
+          onTouchStart={startDrawing}
+          onTouchMove={draw}
+          onTouchEnd={stopDrawing}
           className={`h-[60vh] min-h-[420px] max-h-[720px] w-full ${
             drawingLocked ? "cursor-not-allowed" : "cursor-crosshair"
           }`}
