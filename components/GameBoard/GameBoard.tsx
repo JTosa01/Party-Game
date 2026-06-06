@@ -14,6 +14,7 @@ import {
 import { useTimer } from "@/hooks/useTimer";
 import { getPlayerWord } from "@/services/wordService";
 import ChatBox from "@/components/ChatBox/ChatBox";
+import DrawingCanvas from "@/components/DrawingCanvas/DrawingCanvas";
 
 interface GameBoardProps {
   gameId: string;
@@ -46,10 +47,11 @@ export default function GameBoard({
   const isImpostor = currentPlayerId ? impostorIds.includes(currentPlayerId) : false;
   const showFakeMode = game.settings.gameMode === "impostor_gets_similar_word";
   const visualImpostor = isImpostor && !showFakeMode;
+  const isDrawingMode = game.settings.gameMode === "drawing";
   const currentPlayer = currentPlayerId ? game.players[currentPlayerId] : null;
   const isCurrentPlayerAlive = !!currentPlayer?.isAlive;
   const timerEnabled = !!game.settings.roundTimerEnabled;
-  const timeLimit = game.settings.clueTimeLimit;
+  const timeLimit = isDrawingMode ? (game.settings.drawTimeLimit || 60) : game.settings.clueTimeLimit;
   const { seconds, isRunning } = useTimer(timeLimit, () => {
     setTimerEnded(true);
   }, timerEnabled);
@@ -149,6 +151,30 @@ export default function GameBoard({
       setHasSubmittedClue(true);
     } catch (err) {
       setError("Failed to submit clue");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmitDrawing = async (drawingData: string) => {
+    if (!currentPlayerName) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      await submitClue(
+        gameId,
+        currentPlayerId!,
+        currentPlayerName,
+        null,
+        game.currentRound,
+        drawingData
+      );
+      setHasSubmittedClue(true);
+    } catch (err) {
+      setError("Failed to submit drawing");
       console.error(err);
     } finally {
       setLoading(false);
@@ -341,12 +367,12 @@ export default function GameBoard({
 
           {/* Clues Display */}
           <div className="bg-slate-800 rounded-2xl shadow-xl p-6 border border-slate-700">
-            <h2 className="text-xl font-bold text-white mb-4">Clues Given</h2>
+            <h2 className="text-xl font-bold text-white mb-4">{isDrawingMode ? "Drawings" : "Clues"} Given</h2>
 
             <div className="space-y-3 max-h-96 overflow-y-auto mb-4">
               {clues.length === 0 ? (
                 <p className="text-slate-400 text-center py-8">
-                  No clues yet. Be the first to give one!
+                  No {isDrawingMode ? "drawings" : "clues"} yet. Be the first to give one!
                 </p>
               ) : (
                 clues.map((clue) => (
@@ -366,7 +392,15 @@ export default function GameBoard({
                         {new Date(clue.timestamp).toLocaleTimeString()}
                       </span>
                     </div>
-                    <p className="text-slate-200">{clue.text}</p>
+                    {clue.drawingData ? (
+                      <img
+                        src={clue.drawingData}
+                        alt={`Drawing by ${clue.playerName}`}
+                        className="max-w-full border border-slate-500 rounded bg-white mt-2"
+                      />
+                    ) : (
+                      <p className="text-slate-200">{clue.text}</p>
+                    )}
                   </div>
                 ))
               )}
@@ -383,33 +417,44 @@ export default function GameBoard({
           )}
 
           {isCurrentPlayerAlive && !hasSubmittedClue && roundIsActive && (
-            <form onSubmit={handleSubmitClue} className="bg-slate-800 rounded-2xl shadow-xl p-6 border border-slate-700">
-              <label className="block text-sm font-medium text-slate-200 mb-2">
-                Your Clue
+            <div className="bg-slate-800 rounded-2xl shadow-xl p-6 border border-slate-700">
+              <label className="block text-sm font-medium text-slate-200 mb-4">
+                {isDrawingMode ? "Your Drawing" : "Your Clue"}
               </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={clueInput}
-                  onChange={(e) => setClueInput(e.target.value)}
-                  placeholder={
-                    isImpostor
-                      ? "Give a clue without knowing the word..."
-                      : "Give a helpful clue"
-                  }
-                  className="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500"
-                  disabled={loading}
+              {isDrawingMode ? (
+                <DrawingCanvas
+                  onSubmit={handleSubmitDrawing}
+                  isLoading={loading}
+                  disabled={!roundIsActive}
                 />
-                <button
-                  type="submit"
-                  disabled={loading || !clueInput.trim()}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:bg-slate-600"
-                >
-                  {loading ? "..." : "Submit"}
-                </button>
-              </div>
-              {error && <p className="text-red-400 text-sm mt-2 bg-red-950 p-2 rounded border border-red-900">{error}</p>}
-            </form>
+              ) : (
+                <form onSubmit={handleSubmitClue} className="">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={clueInput}
+                      onChange={(e) => setClueInput(e.target.value)}
+                      placeholder={
+                        isImpostor
+                          ? "Give a clue without knowing the word..."
+                          : "Give a helpful clue"
+                      }
+                      className="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500"
+                      disabled={loading}
+                    />
+                    <button
+                      type="submit"
+                      disabled={loading || !clueInput.trim()}
+                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:bg-slate-600"
+                    >
+                      {loading ? "..." : "Submit"}
+                    </button>
+                  </div>
+                  {error && <p className="text-red-400 text-sm mt-2 bg-red-950 p-2 rounded border border-red-900">{error}</p>}
+                </form>
+              )}
+              {error && isDrawingMode && <p className="text-red-400 text-sm mt-2 bg-red-950 p-2 rounded border border-red-900">{error}</p>}
+            </div>
           )}
 
           {hasSubmittedClue && (

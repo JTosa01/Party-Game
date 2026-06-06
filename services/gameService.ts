@@ -313,22 +313,31 @@ export async function replaceWordIfSkipMajority(
   });
 }
 
-// Submit a clue
+// Submit a clue (text or drawing)
 export async function submitClue(
   gameId: string,
   playerId: string,
   playerName: string,
-  text: string,
-  round: number
+  text: string | null,
+  round: number,
+  drawingData?: string
 ): Promise<void> {
   const cluesRef = collection(db, "games", gameId, "clues");
-  await addDoc(cluesRef, {
+  const clueData: any = {
     playerId,
     playerName,
-    text,
     round,
     timestamp: Date.now(),
-  });
+  };
+
+  if (text) {
+    clueData.text = text;
+  }
+  if (drawingData) {
+    clueData.drawingData = drawingData;
+  }
+
+  await addDoc(cluesRef, clueData);
 }
 
 // Get clues for a round

@@ -6,3 +6,4 @@ export { default as ResultsScreen } from "./ResultsScreen/ResultsScreen";
 export { default as ChatBox } from "./ChatBox/ChatBox";
 export { default as BackgroundMusic } from "./BackgroundMusic/BackgroundMusic";
 export { default as DevBroadcast } from "./DevBroadcast/DevBroadcast";
+export { default as DrawingCanvas } from "./DrawingCanvas/DrawingCanvas";

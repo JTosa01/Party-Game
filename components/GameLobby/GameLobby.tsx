@@ -75,6 +75,9 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
   const [timerSecondsInput, setTimerSecondsInput] = useState<string | number>(
     gameData?.settings.clueTimeLimit ?? ""
   );
+  const [drawTimeLimitInput, setDrawTimeLimitInput] = useState<string | number>(
+    gameData?.settings.drawTimeLimit ?? ""
+  );
 
   const handleStartGame = async () => {
     if (!isHost) return;
@@ -201,10 +204,35 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
     handleTimerSecondsChange(value);
   };
 
+  const handleDrawTimeLimitChange = async (value: string) => {
+    if (!isHost) return;
+
+    const seconds = Number(value);
+    if (!Number.isFinite(seconds)) return;
+
+    try {
+      await updateGameSettings(gameId, {
+        drawTimeLimit: Math.min(600, Math.max(10, seconds)),
+      });
+    } catch (err) {
+      setError("Failed to update draw time limit");
+      console.error(err);
+    }
+  };
+
+  const commitDrawTimeLimit = (value: string) => {
+    if (value.trim() === "") {
+      setDrawTimeLimitInput("");
+      return;
+    }
+    handleDrawTimeLimitChange(value);
+  };
+
   useEffect(() => {
     if (!gameData) return;
     setImpostorCountInput(gameData.settings.impostorCount ?? "");
     setTimerSecondsInput(gameData.settings.clueTimeLimit ?? "");
+    setDrawTimeLimitInput(gameData.settings.drawTimeLimit ?? "");
   }, [gameData]);
 
   const handleGameModeChange = async (value: string) => {
@@ -583,11 +611,45 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
                 >
                   <option value="impostor_gets_nothing">Classic - Impostor gets nothing</option>
                   <option value="impostor_gets_similar_word">Fake Word - Impostor gets similar word</option>
+                  <option value="drawing">Drawing - Players draw what the word is</option>
                 </select>
                 <p className="text-xs text-slate-400 mt-2">
-                  In "Fake Word" mode, the impostor sees a similar word instead of knowing they're the impostor.
+                  {gameData?.settings.gameMode === "impostor_gets_similar_word" && 
+                    "In \"Fake Word\" mode, the impostor sees a similar word instead of knowing they're the impostor."}
+                  {gameData?.settings.gameMode === "drawing" && 
+                    "In \"Drawing\" mode, each player draws what the word is on their turn instead of giving text clues."}
+                  {gameData?.settings.gameMode === "impostor_gets_nothing" && 
+                    "In \"Classic\" mode, the impostor doesn't know the word and must figure it out from clues."}
                 </p>
               </div>
+
+              {gameData?.settings.gameMode === "drawing" && (
+                <div className="mb-3 sm:mb-4 rounded-lg border border-slate-600 bg-slate-700 p-3 sm:p-4">
+                  <label
+                    htmlFor="draw-time-limit"
+                    className="block text-base sm:text-sm font-medium text-slate-200 mb-2"
+                  >
+                    Drawing Time Per Player
+                  </label>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                    <input
+                      id="draw-time-limit"
+                      type="number"
+                      min={10}
+                      max={600}
+                      step={5}
+                      value={drawTimeLimitInput as any}
+                      onChange={(e) => setDrawTimeLimitInput(e.target.value)}
+                      onBlur={(e) => commitDrawTimeLimit(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitDrawTimeLimit((e.target as HTMLInputElement).value);
+                      }}
+                      className="w-full sm:w-28 px-4 py-3 sm:py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 min-h-12 sm:min-h-10 text-base sm:text-sm"
+                    />
+                    <span className="text-sm text-slate-300 whitespace-nowrap">seconds</span>
+                  </div>
+                </div>
+              )}
 
               {error && <div className="text-red-400 text-sm mb-3 sm:mb-4 bg-red-950 p-3 rounded border border-red-900">{error}</div>}
 

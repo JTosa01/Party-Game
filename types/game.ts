@@ -1,5 +1,5 @@
 export type GameStatus = "setup" | "revealing" | "playing" | "voting" | "finished";
-export type GameMode = "standard" | "impostor_gets_similar_word" | "impostor_gets_nothing";
+export type GameMode = "standard" | "impostor_gets_similar_word" | "impostor_gets_nothing" | "drawing" | "shared_drawing";
 
 export interface Player {
   id: string;
@@ -17,7 +17,8 @@ export interface Clue {
   id: string;
   playerId: string;
   playerName: string;
-  text: string;
+  text?: string; // Text clue (for non-drawing modes)
+  drawingData?: string; // Base64 encoded drawing (for drawing mode)
   round: number;
   timestamp: number;
 }
@@ -37,6 +38,7 @@ export interface GameSettings {
   impostorCount: number;
   gameMode: GameMode;
   wordListId: string;
+  drawTimeLimit?: number; // seconds for drawing mode
 }
 
 export interface Game {
