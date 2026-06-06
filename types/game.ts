@@ -1,4 +1,4 @@
-export type GameStatus = "setup" | "revealing" | "playing" | "voting" | "finished";
+﻿export type GameStatus = "setup" | "revealing" | "playing" | "voting" | "finished";
 export type GameMode = "standard" | "impostor_gets_similar_word" | "impostor_gets_nothing" | "drawing" | "shared_drawing";
 
 export interface Player {
@@ -65,6 +65,7 @@ export interface Game {
     timestamp: number;
     gifUrl?: string;
   };
+  accumulatedCanvasData?: string; // Accumulated canvas for shared_drawing mode
 }
 
 export interface GameResult {

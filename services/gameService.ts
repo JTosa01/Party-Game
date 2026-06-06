@@ -1,4 +1,4 @@
-import {
+﻿import {
   collection,
   doc,
   getDoc,
@@ -320,8 +320,63 @@ export async function submitClue(
   playerName: string,
   text: string | null,
   round: number,
-  drawingData?: string
+  drawingData?: string, accumulatedCanvasData?: string
 ): Promise<void> {
+  const gameRef = doc(db, "games", gameId);
+  const game = await getGame(gameId);
+
+  if (game?.settings.gameMode === "shared_drawing") {
+    if (!drawingData) {
+      throw new Error("Shared drawing submissions require drawing data");
+    }
+
+    await runTransaction(db, async (transaction) => {
+      const gameSnap = await transaction.get(gameRef);
+      if (!gameSnap.exists()) throw new Error("Game not found");
+
+      const currentGame = gameSnap.data() as Game;
+      if (currentGame.status !== "playing") {
+        throw new Error("The round is not accepting drawings");
+      }
+      if (currentGame.settings.gameMode !== "shared_drawing") {
+        throw new Error("Game mode changed before drawing was submitted");
+      }
+      if (currentGame.currentRound !== round) {
+        throw new Error("Drawing was submitted for an old round");
+      }
+
+      const aliveTurnOrder = (currentGame.turnOrder || []).filter(
+        (turnPlayerId) => currentGame.players[turnPlayerId]?.isAlive
+      );
+      const currentTurnIndex = currentGame.currentTurnIndex ?? 0;
+      const currentTurnPlayerId = aliveTurnOrder[currentTurnIndex];
+
+      if (!currentTurnPlayerId || currentTurnPlayerId !== playerId) {
+        throw new Error("It is not this player's turn to draw");
+      }
+
+      const cluesRef = collection(db, "games", gameId, "clues");
+      const clueRef = doc(cluesRef);
+      transaction.set(clueRef, {
+        playerId,
+        playerName,
+        round,
+        timestamp: Date.now(),
+        drawingData,
+      });
+
+      const nextTurnIndex = currentTurnIndex + 1;
+      transaction.update(gameRef, {
+        accumulatedCanvasData: drawingData,
+        ...(nextTurnIndex >= aliveTurnOrder.length
+          ? { status: "voting" }
+          : { currentTurnIndex: nextTurnIndex }),
+      });
+    });
+
+    return;
+  }
+
   const cluesRef = collection(db, "games", gameId, "clues");
   const clueData: any = {
     playerId,
@@ -338,6 +393,11 @@ export async function submitClue(
   }
 
   await addDoc(cluesRef, clueData);
+
+  if (accumulatedCanvasData) {
+    await updateDoc(gameRef, { accumulatedCanvasData });
+  }
+
 }
 
 // Get clues for a round
@@ -532,6 +592,7 @@ export async function forceEndVoting(gameId: string): Promise<void> {
     transaction.update(gameRef, {
       players: nextPlayers,
       currentRound: game.currentRound + 1,
+      accumulatedCanvasData: deleteField(),
       status: "playing",
       turnOrder: (game.turnOrder || []).filter((playerId) => nextPlayers[playerId]?.isAlive),
       currentTurnIndex: 0,
@@ -607,6 +668,7 @@ export async function resolveCompletedVote(gameId: string): Promise<void> {
     transaction.update(gameRef, {
       players: nextPlayers,
       currentRound: game.currentRound + 1,
+      accumulatedCanvasData: deleteField(),
       status: "playing",
       turnOrder: (game.turnOrder || []).filter((playerId) => nextPlayers[playerId]?.isAlive),
       currentTurnIndex: 0,
@@ -696,6 +758,7 @@ export async function resetVotes(gameId: string): Promise<void> {
 
   batch.update(gameRef, {
     currentRound: game.currentRound + 1,
+    accumulatedCanvasData: deleteField(),
   });
 
   await batch.commit();
@@ -763,6 +826,15 @@ export async function advanceTurn(gameId: string): Promise<void> {
   if (!game || !game.turnOrder) return;
 
   const nextTurnIndex = (game.currentTurnIndex || 0) + 1;
+  const alivePlayers = Object.values(game.players).filter(p => p.isAlive);
+  
+  // In shared_drawing mode, when all players have taken their turn, move to voting
+  if (game.settings.gameMode === "shared_drawing" && nextTurnIndex >= alivePlayers.length) {
+    await updateDoc(gameRef, {
+      status: "voting",
+    });
+    return;
+  }
 
   await updateDoc(gameRef, {
     currentTurnIndex: nextTurnIndex,

@@ -9,6 +9,7 @@ import {
   forceEndVoting,
 } from "@/services/gameService";
 import { useGameContext } from "@/context/GameContext";
+import { getSharedDrawingColor } from "@/services/sharedDrawingColors";
 
 interface VotingPanelProps {
   gameId: string;
@@ -35,6 +36,10 @@ export default function VotingPanel({
   const currentPlayer = currentPlayerId ? game.players[currentPlayerId] : null;
   const hasVoted = !!currentPlayer?.hasVoted;
   const canVote = !!currentPlayer?.isAlive;
+  const isSharedDrawingMode = game.settings.gameMode === "shared_drawing";
+  const sharedDrawingPlayers = (game.turnOrder || []).filter(
+    (playerId) => game.players[playerId]?.isAlive
+  );
 
   useEffect(() => {
     // Auto-load vote results periodically
@@ -105,7 +110,7 @@ export default function VotingPanel({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-4">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <div className="bg-slate-800 rounded-2xl shadow-xl p-8 border border-slate-700">
           <h1 className="text-4xl font-bold text-center text-white mb-2">
             Voting Phase
@@ -113,6 +118,46 @@ export default function VotingPanel({
           <p className="text-center text-slate-300 mb-8">
             Who do you think is the impostor?
           </p>
+
+          {isSharedDrawingMode && (
+            <div className="mb-8 rounded-xl border border-slate-600 bg-slate-900/70 p-4">
+              <h2 className="mb-4 text-center text-2xl font-bold text-white">
+                Final Drawing
+              </h2>
+              {game.accumulatedCanvasData ? (
+                <img
+                  src={game.accumulatedCanvasData}
+                  alt="Final shared drawing"
+                  className="w-full rounded-lg border-2 border-slate-500 bg-white object-contain"
+                />
+              ) : (
+                <div className="flex min-h-80 items-center justify-center rounded-lg border-2 border-slate-600 bg-white text-slate-500">
+                  No drawing was submitted this round.
+                </div>
+              )}
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {sharedDrawingPlayers.map((playerId, index) => {
+                  const player = game.players[playerId];
+                  const color = getSharedDrawingColor(index);
+
+                  return (
+                    <div
+                      key={playerId}
+                      className="flex items-center gap-3 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2"
+                    >
+                      <span
+                        className="h-5 w-5 shrink-0 rounded-full border border-white/70"
+                        style={{ backgroundColor: color }}
+                      />
+                      <span className="font-semibold text-slate-100">
+                        {player?.name || "Unknown"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {!canVote && (
             <div className="mb-6 bg-slate-700 border border-slate-600 rounded-lg p-4">

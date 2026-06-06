@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { useGameContext } from "@/context/GameContext";
@@ -612,18 +612,22 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
                   <option value="impostor_gets_nothing">Classic - Impostor gets nothing</option>
                   <option value="impostor_gets_similar_word">Fake Word - Impostor gets similar word</option>
                   <option value="drawing">Drawing - Players draw what the word is</option>
+                  <option value="shared_drawing">Shared Canvas - Each player contributes to one collaborative drawing</option>
                 </select>
                 <p className="text-xs text-slate-400 mt-2">
                   {gameData?.settings.gameMode === "impostor_gets_similar_word" && 
                     "In \"Fake Word\" mode, the impostor sees a similar word instead of knowing they're the impostor."}
                   {gameData?.settings.gameMode === "drawing" && 
                     "In \"Drawing\" mode, each player draws what the word is on their turn instead of giving text clues."}
+                  {gameData?.settings.gameMode === "shared_drawing" &&
+                    "In Shared Canvas mode, players collaboratively build one collaborative drawing."
+                  }
                   {gameData?.settings.gameMode === "impostor_gets_nothing" && 
                     "In \"Classic\" mode, the impostor doesn't know the word and must figure it out from clues."}
                 </p>
               </div>
 
-              {gameData?.settings.gameMode === "drawing" && (
+              {(gameData?.settings.gameMode === "shared_drawing" || gameData?.settings.gameMode === "drawing") && (
                 <div className="mb-3 sm:mb-4 rounded-lg border border-slate-600 bg-slate-700 p-3 sm:p-4">
                   <label
                     htmlFor="draw-time-limit"

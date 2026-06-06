@@ -15,6 +15,8 @@ import { useTimer } from "@/hooks/useTimer";
 import { getPlayerWord } from "@/services/wordService";
 import ChatBox from "@/components/ChatBox/ChatBox";
 import DrawingCanvas from "@/components/DrawingCanvas/DrawingCanvas";
+import SharedDrawingCanvas from "@/components/SharedDrawingCanvas/SharedDrawingCanvas";
+import { getSharedDrawingColor } from "@/services/sharedDrawingColors";
 
 interface GameBoardProps {
   gameId: string;
@@ -48,14 +50,34 @@ export default function GameBoard({
   const showFakeMode = game.settings.gameMode === "impostor_gets_similar_word";
   const visualImpostor = isImpostor && !showFakeMode;
   const isDrawingMode = game.settings.gameMode === "drawing";
+  const isSharedDrawingMode = game.settings.gameMode === "shared_drawing";
   const currentPlayer = currentPlayerId ? game.players[currentPlayerId] : null;
   const isCurrentPlayerAlive = !!currentPlayer?.isAlive;
   const timerEnabled = !!game.settings.roundTimerEnabled;
-  const timeLimit = isDrawingMode ? (game.settings.drawTimeLimit || 60) : game.settings.clueTimeLimit;
+  const timeLimit = (isDrawingMode || isSharedDrawingMode) ? (game.settings.drawTimeLimit || 60) : game.settings.clueTimeLimit;
   const { seconds, isRunning } = useTimer(timeLimit, () => {
     setTimerEnded(true);
   }, timerEnabled);
   const roundIsActive = !timerEnabled || isRunning;
+  const aliveTurnOrder = (game.turnOrder || []).filter(
+    (playerId) => game.players[playerId]?.isAlive
+  );
+  const currentDrawingPlayerId =
+    isSharedDrawingMode && game.currentTurnIndex !== undefined
+      ? aliveTurnOrder[game.currentTurnIndex]
+      : null;
+  const currentDrawingPlayerName = currentDrawingPlayerId
+    ? game.players[currentDrawingPlayerId]?.name || "Unknown"
+    : "Someone";
+  const currentDrawingColor = getSharedDrawingColor(
+    Math.max(0, game.currentTurnIndex ?? 0)
+  );
+
+  // Determine if it's the current player's turn in shared drawing mode
+  const isCurrentPlayersTurn = 
+    isSharedDrawingMode && currentDrawingPlayerId
+      ? currentDrawingPlayerId === currentPlayerId
+      : true;
 
   // Check if player already voted to skip
   useEffect(() => {
@@ -157,6 +179,32 @@ export default function GameBoard({
     }
   };
 
+
+  const handleSubmitSharedDrawing = async (drawingData: string) => {
+    if (!currentPlayerName) return;
+    if (isSharedDrawingMode && !isCurrentPlayersTurn) {
+      setError("It is not your turn to draw yet.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      await submitClue(
+        gameId,
+        currentPlayerId!,
+        currentPlayerName,
+        null,
+        game.currentRound,
+        drawingData
+      );
+      setHasSubmittedClue(true);
+    } catch (err) {
+      setError("Failed to submit shared drawing");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleSubmitDrawing = async (drawingData: string) => {
     if (!currentPlayerName) return;
 
@@ -366,6 +414,7 @@ export default function GameBoard({
           </div>
 
           {/* Clues Display */}
+          {!isSharedDrawingMode && (
           <div className="bg-slate-800 rounded-2xl shadow-xl p-6 border border-slate-700">
             <h2 className="text-xl font-bold text-white mb-4">{isDrawingMode ? "Drawings" : "Clues"} Given</h2>
 
@@ -406,6 +455,27 @@ export default function GameBoard({
               )}
             </div>
           </div>
+          )}
+
+          {isSharedDrawingMode && roundIsActive && (
+            <div className="bg-slate-800 rounded-2xl shadow-xl p-4 sm:p-6 border border-slate-700">
+              <SharedDrawingCanvas
+                gameId={gameId}
+                round={game.currentRound}
+                onSubmit={handleSubmitSharedDrawing}
+                isLoading={loading}
+                disabled={!isCurrentPlayerAlive || !roundIsActive}
+                isCurrentPlayerTurn={isCurrentPlayerAlive && isCurrentPlayersTurn}
+                currentDrawerName={currentDrawingPlayerName}
+                strokeColor={currentDrawingColor}
+              />
+              {error && (
+                <p className="text-red-400 text-sm mt-3 bg-red-950 p-2 rounded border border-red-900">
+                  {error}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Clue Input */}
           {!isCurrentPlayerAlive && (
@@ -416,45 +486,69 @@ export default function GameBoard({
             </div>
           )}
 
-          {isCurrentPlayerAlive && !hasSubmittedClue && roundIsActive && (
-            <div className="bg-slate-800 rounded-2xl shadow-xl p-6 border border-slate-700">
-              <label className="block text-sm font-medium text-slate-200 mb-4">
-                {isDrawingMode ? "Your Drawing" : "Your Clue"}
-              </label>
-              {isDrawingMode ? (
-                <DrawingCanvas
-                  onSubmit={handleSubmitDrawing}
-                  isLoading={loading}
-                  disabled={!roundIsActive}
-                />
-              ) : (
-                <form onSubmit={handleSubmitClue} className="">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={clueInput}
-                      onChange={(e) => setClueInput(e.target.value)}
-                      placeholder={
-                        isImpostor
-                          ? "Give a clue without knowing the word..."
-                          : "Give a helpful clue"
-                      }
-                      className="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500"
-                      disabled={loading}
-                    />
-                    <button
-                      type="submit"
-                      disabled={loading || !clueInput.trim()}
-                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:bg-slate-600"
-                    >
-                      {loading ? "..." : "Submit"}
-                    </button>
+          {isCurrentPlayerAlive && !isSharedDrawingMode && !hasSubmittedClue && roundIsActive && (
+            <>
+              {isSharedDrawingMode && !isCurrentPlayersTurn ? (
+                <div className="bg-slate-800 rounded-2xl shadow-xl p-6 border border-slate-700">
+                  <div className="bg-blue-900 border border-blue-700 rounded-lg p-4">
+                    <p className="text-blue-300 font-semibold">
+                      Waiting for your turn to draw...
+                    </p>
+                    <p className="text-sm text-blue-200 mt-2">
+                      Current player: {game.turnOrder && game.currentTurnIndex !== undefined ? game.players[game.turnOrder[game.currentTurnIndex]]?.name : "Unknown"}
+                    </p>
                   </div>
-                  {error && <p className="text-red-400 text-sm mt-2 bg-red-950 p-2 rounded border border-red-900">{error}</p>}
-                </form>
+                </div>
+              ) : (
+                <div className="bg-slate-800 rounded-2xl shadow-xl p-6 border border-slate-700">
+                  <label className="block text-sm font-medium text-slate-200 mb-4">
+                    {isSharedDrawingMode ? "Your Turn to Draw (on shared canvas)" : isDrawingMode ? "Your Drawing" : "Your Clue"}
+                  </label>
+                  {isSharedDrawingMode ? (
+                    <SharedDrawingCanvas
+                      gameId={gameId}
+                      round={game.currentRound}
+                      onSubmit={handleSubmitSharedDrawing}
+                      isLoading={loading}
+                      disabled={!roundIsActive}
+                      isCurrentPlayerTurn={isCurrentPlayersTurn}
+                    />
+                  ) : isDrawingMode ? (
+                    <DrawingCanvas
+                      onSubmit={handleSubmitDrawing}
+                      isLoading={loading}
+                      disabled={!roundIsActive}
+                    />
+                  ) : (
+                    <form onSubmit={handleSubmitClue} className="">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={clueInput}
+                          onChange={(e) => setClueInput(e.target.value)}
+                          placeholder={
+                            isImpostor
+                              ? "Give a clue without knowing the word..."
+                              : "Give a helpful clue"
+                          }
+                          className="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500"
+                          disabled={loading}
+                        />
+                        <button
+                          type="submit"
+                          disabled={loading || !clueInput.trim()}
+                          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:bg-slate-600"
+                        >
+                          {loading ? "..." : "Submit"}
+                        </button>
+                      </div>
+                      {error && <p className="text-red-400 text-sm mt-2 bg-red-950 p-2 rounded border border-red-900">{error}</p>}
+                    </form>
+                  )}
+                  {error && isDrawingMode && <p className="text-red-400 text-sm mt-2 bg-red-950 p-2 rounded border border-red-900">{error}</p>}
+                </div>
               )}
-              {error && isDrawingMode && <p className="text-red-400 text-sm mt-2 bg-red-950 p-2 rounded border border-red-900">{error}</p>}
-            </div>
+            </>
           )}
 
           {hasSubmittedClue && (
