@@ -97,6 +97,7 @@ function getGameOutcome(game: Game): "impostors_win" | "regulars_win" | null {
 
   if (aliveImpostorCount === 0) return "regulars_win";
   if (aliveRegularCount === 0) return "impostors_win";
+  if (aliveImpostorCount === 1 && aliveRegularCount === 1) return "impostors_win";
 
   return null;
 }
