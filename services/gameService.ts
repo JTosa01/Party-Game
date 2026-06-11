@@ -475,6 +475,28 @@ export async function endGame(
   await updateDoc(gameRef, {
     status: "finished",
   });
+
+  // Clean up drawing data and clues to save storage
+  try {
+    // Delete all clues from this game
+    const cluesRef = collection(db, "games", gameId, "clues");
+    const cluesSnapshot = await getDocs(cluesRef);
+    if (!cluesSnapshot.empty) {
+      const batch = writeBatch(db);
+      cluesSnapshot.docs.forEach((document) => {
+        batch.delete(document.ref);
+      });
+      await batch.commit();
+    }
+
+    // Clear accumulated canvas data from game document
+    await updateDoc(gameRef, {
+      accumulatedCanvasData: deleteField(),
+    });
+  } catch (err) {
+    console.warn("Failed to clean up game data:", err);
+    // Don't throw - game has already ended successfully
+  }
 }
 
 async function deleteCollectionDocs(path: string): Promise<void> {
@@ -521,6 +543,7 @@ export async function resetGameToLobby(
     startedAt: deleteField(),
     turnOrder: deleteField(),
     currentTurnIndex: deleteField(),
+    accumulatedCanvasData: deleteField(),
   });
 
   await Promise.all([

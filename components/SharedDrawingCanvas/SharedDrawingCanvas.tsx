@@ -29,6 +29,7 @@ export default function SharedDrawingCanvas({
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
   const [accumulatedData, setAccumulatedData] = useState<string | null>(null);
+  const [history, setHistory] = useState<ImageData[]>([]);
   const drawingLocked = disabled || isLoading || !isCurrentPlayerTurn;
 
   // Load accumulated drawing data from previous turns
@@ -65,10 +66,19 @@ export default function SharedDrawingCanvas({
       const img = new Image();
       img.onload = () => {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        // Save state to history after loading accumulated data
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        setHistory([imageData]);
+        setHasDrawn(false);
       };
       img.src = accumulatedData;
+    } else {
+      // Initialize history with blank state
+      const blankState = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      setHistory([blankState]);
+      setHasDrawn(false);
     }
-  }, [accumulatedData]);
+  }, [accumulatedData, round]); // Reset when round changes
 
   const getCoords = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -119,7 +129,61 @@ export default function SharedDrawingCanvas({
 
   const stopDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault();
+    // Save state to history after stroke ends
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      setHistory((prev) => [...prev, imageData]);
+    }
     setIsDrawing(false);
+  };
+
+  const undo = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || history.length <= 1) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Remove last state from history
+    const newHistory = history.slice(0, -1);
+    setHistory(newHistory);
+
+    // Restore previous state
+    const previousState = newHistory[newHistory.length - 1];
+    ctx.putImageData(previousState, 0, 0);
+
+    // Update hasDrawn state
+    setHasDrawn(newHistory.length > 1);
+  };
+
+  const clearMyDrawing = () => {
+    // Only clear what this player drew (reset to accumulated data state)
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Clear to accumulated data or white
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (accumulatedData) {
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        setHistory([imageData]);
+      };
+      img.src = accumulatedData;
+    } else {
+      const blankState = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      setHistory([blankState]);
+    }
+    setHasDrawn(false);
   };
 
   const handleSubmit = async () => {
@@ -173,13 +237,31 @@ export default function SharedDrawingCanvas({
         />
       </div>
 
-      <button
-        onClick={handleSubmit}
-        disabled={drawingLocked || !hasDrawn}
-        className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:bg-slate-600 font-semibold"
-      >
-        {isLoading ? "Submitting..." : "Submit Turn"}
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={clearMyDrawing}
+          disabled={drawingLocked || !hasDrawn}
+          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition disabled:bg-slate-700 disabled:cursor-not-allowed font-medium"
+          title="Clear your strokes"
+        >
+          Clear
+        </button>
+        <button
+          onClick={undo}
+          disabled={drawingLocked || history.length <= 1}
+          className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition disabled:bg-slate-700 disabled:cursor-not-allowed font-medium"
+          title="Undo last stroke"
+        >
+          ↶ Undo
+        </button>
+        <button
+          onClick={handleSubmit}
+          disabled={drawingLocked || !hasDrawn}
+          className="flex-1 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:bg-slate-600 font-semibold"
+        >
+          {isLoading ? "Submitting..." : "Submit Turn"}
+        </button>
+      </div>
     </div>
   );
 }

@@ -518,6 +518,7 @@ export default function GameBoard({
                       onSubmit={handleSubmitDrawing}
                       isLoading={loading}
                       disabled={!roundIsActive}
+                      roundId={game.currentRound}
                     />
                   ) : (
                     <form onSubmit={handleSubmitClue} className="">

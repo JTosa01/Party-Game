@@ -6,18 +6,21 @@ interface DrawingCanvasProps {
   onSubmit: (drawingData: string) => Promise<void>;
   isLoading?: boolean;
   disabled?: boolean;
+  roundId?: number | string; // Force reset when round changes
 }
 
 export default function DrawingCanvas({
   onSubmit,
   isLoading = false,
   disabled = false,
+  roundId,
 }: DrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
+  const [history, setHistory] = useState<ImageData[]>([]);
 
-  // Initialize canvas
+  // Initialize canvas and clear between rounds
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -31,8 +34,12 @@ export default function DrawingCanvas({
     if (ctx) {
       ctx.fillStyle = "white";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Store initial blank state in history
+      const initialState = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      setHistory([initialState]);
     }
-  }, []);
+    setHasDrawn(false);
+  }, [roundId]); // Clear canvas when roundId changes
 
   const getCoords = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -83,7 +90,34 @@ export default function DrawingCanvas({
 
   const stopDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault();
+    // Save state to history after stroke ends
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      setHistory((prev) => [...prev, imageData]);
+    }
     setIsDrawing(false);
+  };
+
+  const undo = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || history.length <= 1) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Remove last state from history
+    const newHistory = history.slice(0, -1);
+    setHistory(newHistory);
+
+    // Restore previous state
+    const previousState = newHistory[newHistory.length - 1];
+    ctx.putImageData(previousState, 0, 0);
+
+    // Update hasDrawn state
+    setHasDrawn(newHistory.length > 1);
   };
 
   const clearCanvas = () => {
@@ -94,6 +128,9 @@ export default function DrawingCanvas({
     if (ctx) {
       ctx.fillStyle = "white";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Reset history to just the blank state
+      const blankState = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      setHistory([blankState]);
       setHasDrawn(false);
     }
   };
@@ -132,14 +169,23 @@ export default function DrawingCanvas({
         <button
           onClick={clearCanvas}
           disabled={disabled || isLoading || !hasDrawn}
-          className="flex-1 px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition disabled:bg-slate-700 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition disabled:bg-slate-700 disabled:cursor-not-allowed font-medium"
+          title="Clear entire canvas"
         >
           Clear
         </button>
         <button
+          onClick={undo}
+          disabled={disabled || isLoading || history.length <= 1}
+          className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition disabled:bg-slate-700 disabled:cursor-not-allowed font-medium"
+          title="Undo last stroke"
+        >
+          ↶ Undo
+        </button>
+        <button
           onClick={handleSubmit}
           disabled={disabled || isLoading || !hasDrawn}
-          className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:bg-slate-600 disabled:cursor-not-allowed"
+          className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:bg-slate-600 disabled:cursor-not-allowed font-medium"
         >
           {isLoading ? "Submitting..." : "Submit Drawing"}
         </button>
