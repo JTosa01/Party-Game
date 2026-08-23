@@ -64,7 +64,9 @@ export default function Home() {
 
   const handleJoinGame = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!playerName.trim() || !gameCode.trim()) {
+    const normalizedGameCode = gameCode.trim().toUpperCase();
+
+    if (!playerName.trim() || !normalizedGameCode) {
       setError("Please enter your name and game code");
       return;
     }
@@ -77,11 +79,11 @@ export default function Home() {
     setError("");
 
     try {
-      await joinGame(gameCode, userId, playerName);
+      await joinGame(normalizedGameCode, userId, playerName);
       setCurrentPlayer(userId, playerName);
-      localStorage.setItem("gameId", gameCode);
+      localStorage.setItem("gameId", normalizedGameCode);
 
-      router.push(`/game/${gameCode}`);
+      router.push(`/game/${normalizedGameCode}`);
     } catch (err) {
       setError("Failed to join game. Please check the game code.");
       console.error(err);
@@ -216,7 +218,7 @@ export default function Home() {
                 <input
                   type="text"
                   value={gameCode}
-                  onChange={(e) => setGameCode(e.target.value)}
+                  onChange={(e) => setGameCode(e.target.value.toUpperCase())}
                   placeholder="Enter game code"
                   className="w-full px-4 py-3 sm:py-2 bg-slate-700 border border-slate-600 rounded-lg text-base sm:text-sm text-white placeholder-slate-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent min-h-12 sm:min-h-10 uppercase"
                   disabled={loading}

@@ -33,7 +33,7 @@ export default function JoinGameModal({ gameId, game }: JoinGameModalProps) {
     setError("");
 
     try {
-      await joinGame(gameId, userId, playerName);
+      await joinGame(gameId.toUpperCase(), userId, playerName);
       setCurrentPlayer(userId, playerName);
       // Game will update via real-time listener
     } catch (err: any) {

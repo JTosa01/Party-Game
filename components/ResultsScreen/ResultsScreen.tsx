@@ -32,7 +32,13 @@ export default function ResultsScreen({
   const aliveImpostorCount = alivePlayers.filter((player) =>
     impostorIds.includes(player.id)
   ).length;
-  const didRegularsWin = aliveImpostorCount === 0;
+  const isGuessing = game.status === "guessing";
+  const didRegularsWin = game.winner
+    ? game.winner === "regulars"
+    : aliveImpostorCount === 0;
+  const didImpostorsWin = game.winner
+    ? game.winner === "impostors"
+    : !didRegularsWin;
 
   const voteResults: Record<string, number> = {};
   Object.values(game.players).forEach((player) => {
@@ -46,7 +52,7 @@ export default function ResultsScreen({
     mostVotedId === "nobody"
       ? "Nobody"
       : game.players[mostVotedId]?.name || "Unknown";
-  const wasImpostorOuted = didRegularsWin;
+  const wasImpostorOuted = isGuessing;
 
   const handleSubmitGuess = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,8 +89,19 @@ export default function ResultsScreen({
         <div className="bg-slate-800 rounded-2xl shadow-xl p-8 border border-slate-700">
           <div className="text-center mb-8">
             <div className="text-5xl font-bold mb-4 text-white">
-              {didRegularsWin ? "All Impostors Found!" : "Impostors Win!"}
+              {isGuessing
+                ? "All Impostors Found!"
+                : didImpostorsWin
+                ? "Impostors Won!"
+                : "Regulars Won!"}
             </div>
+            <p className="text-lg text-slate-300">
+              {isGuessing
+                ? "The impostor has one last chance to guess the word."
+                : didImpostorsWin
+                ? "The impostor guessed the word correctly."
+                : "The impostor's guess was incorrect."}
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-8">
@@ -96,7 +113,7 @@ export default function ResultsScreen({
               <p className="text-slate-400 text-sm">Final Vote</p>
               <p className="text-xl font-bold text-red-300">{mostVotedName}</p>
             </div>
-            {(!isImpostor || guessSubmitted) && (
+            {!isGuessing && (
               <div className="bg-blue-900 border border-blue-700 rounded-lg p-4 col-span-2">
                 <p className="text-slate-400 text-sm">The Word Was</p>
                 <p className="text-3xl font-bold text-blue-300">{game.word}</p>
@@ -104,7 +121,7 @@ export default function ResultsScreen({
             )}
           </div>
 
-          {isImpostor && !guessSubmitted && (
+          {isImpostor && isGuessing && !guessSubmitted && (
             <form onSubmit={handleSubmitGuess} className="mb-8 p-4 bg-slate-700 border border-yellow-700 rounded-lg">
               <h3 className="font-bold text-white mb-4">
                 {wasImpostorOuted
@@ -131,9 +148,17 @@ export default function ResultsScreen({
             </form>
           )}
 
+          {isGuessing && !isImpostor && (
+            <div className="mb-8 p-4 bg-yellow-900 border border-yellow-700 rounded-lg text-center">
+              <p className="text-yellow-200 font-semibold">
+                The impostor is deciding the fate of the game...
+              </p>
+            </div>
+          )}
+
           {guessSubmitted && isImpostor && (
             <div className="mb-8 p-4 bg-green-900 border border-green-700 rounded-lg">
-              <p className="text-green-300 font-semibold">Guess submitted!</p>
+              <p className="text-green-300 font-semibold">Guess submitted. Waiting for the reveal...</p>
             </div>
           )}
 

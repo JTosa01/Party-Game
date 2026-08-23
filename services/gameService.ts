@@ -108,7 +108,7 @@ export async function joinGame(
   playerId: string,
   playerName: string
 ): Promise<void> {
-  const gameRef = doc(db, "games", gameId);
+  const gameRef = doc(db, "games", gameId.trim().toUpperCase());
 
   await updateDoc(gameRef, {
     [`players.${playerId}`]: {
@@ -472,8 +472,11 @@ export async function endGame(
   });
 
   const gameRef = doc(db, "games", gameId);
+  const impostorWon = result.impostorGuess?.trim().toLowerCase() === result.finalWord.trim().toLowerCase();
   await updateDoc(gameRef, {
     status: "finished",
+    winner: impostorWon ? "impostors" : "regulars",
+    impostorGuess: result.impostorGuess || "",
   });
 
   // Clean up drawing data and clues to save storage
@@ -544,6 +547,8 @@ export async function resetGameToLobby(
     turnOrder: deleteField(),
     currentTurnIndex: deleteField(),
     accumulatedCanvasData: deleteField(),
+    winner: deleteField(),
+    impostorGuess: deleteField(),
   });
 
   await Promise.all([
@@ -596,7 +601,8 @@ export async function forceEndVoting(gameId: string): Promise<void> {
     if (outcome) {
       transaction.update(gameRef, {
         players: eliminatedPlayers,
-        status: "finished",
+        status: outcome === "regulars_win" ? "guessing" : "finished",
+        ...(outcome === "impostors_win" && { winner: "impostors" }),
       });
       return;
     }
@@ -672,7 +678,8 @@ export async function resolveCompletedVote(gameId: string): Promise<void> {
     if (outcome) {
       transaction.update(gameRef, {
         players: eliminatedPlayers,
-        status: "finished",
+        status: outcome === "regulars_win" ? "guessing" : "finished",
+        ...(outcome === "impostors_win" && { winner: "impostors" }),
       });
       return;
     }

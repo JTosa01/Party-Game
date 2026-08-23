@@ -15,7 +15,7 @@ import JoinGameModal from "@/components/JoinGameModal/JoinGameModal";
 export default function GamePage() {
   const params = useParams();
   const router = useRouter();
-  const gameId = params.gameId as string;
+  const gameId = (params.gameId as string).trim().toUpperCase();
   const { game, setGame, currentPlayerId, currentPlayerName, setCurrentPlayer } = useGameContext();
   const { userId, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -150,7 +150,7 @@ export default function GamePage() {
     );
   }
 
-  if (game.status === "finished") {
+  if (game.status === "guessing" || game.status === "finished") {
     return (
       <ResultsScreen
         gameId={gameId}
