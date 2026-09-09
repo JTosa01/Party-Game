@@ -46,6 +46,7 @@ export default function GameBoard({
   const [sendingDevMessage, setSendingDevMessage] = useState(false);
   const [devStatusMessage, setDevStatusMessage] = useState("");
   const [forcingEnd, setForcingEnd] = useState(false);
+  const [hiddenWordRound, setHiddenWordRound] = useState<number | null>(null);
 
   const impostorIds = game.impostorIds?.length ? game.impostorIds : [game.impostorId];
   const isImpostor = currentPlayerId ? impostorIds.includes(currentPlayerId) : false;
@@ -185,6 +186,8 @@ export default function GameBoard({
       setLoading(false);
     }
   };
+
+  const isWordVisible = hiddenWordRound !== game.currentRound;
 
   const handleForceEndDiscussion = async () => {
     if (!currentPlayerId || !isHost || forcingEnd) return;
@@ -371,7 +374,8 @@ export default function GameBoard({
                       autoFocus
                     />
                     <input
-                      type="url"
+                      type="text"
+                      inputMode="url"
                       value={devGifUrl}
                       onChange={(e) => setDevGifUrl(e.target.value)}
                       placeholder="Optional: GIF URL (e.g., https://media.giphy.com/...)"
@@ -412,13 +416,25 @@ export default function GameBoard({
             <div className="text-center mb-6">
               <div className="text-sm text-slate-400 mb-2">Round {game.currentRound}</div>
               <div className="text-5xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent mb-4">
-                {getPlayerWord(game.word, isImpostor, game.impostorWord)}
+                {isWordVisible
+                  ? getPlayerWord(game.word, isImpostor, game.impostorWord)
+                  : "••••••••"}
               </div>
-              {visualImpostor && (
+              {visualImpostor && isWordVisible && (
                 <div className="text-lg font-semibold text-red-400">
                   You are the Impostor! 🕵️
                 </div>
               )}
+              <button
+                type="button"
+                onClick={() =>
+                  setHiddenWordRound(isWordVisible ? game.currentRound : null)
+                }
+                className="mt-4 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-sm font-semibold text-slate-200 rounded-lg transition"
+                aria-label={isWordVisible ? "Hide word and role" : "Show word and role"}
+              >
+                {isWordVisible ? "Hide Word" : "Show Word"}
+              </button>
             </div>
 
             {/* Timer */}

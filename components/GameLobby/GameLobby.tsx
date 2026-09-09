@@ -435,7 +435,8 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
                   autoFocus
                 />
                 <input
-                  type="url"
+                  type="text"
+                  inputMode="url"
                   value={devGifUrl}
                   onChange={(e) => setDevGifUrl(e.target.value)}
                   className="w-full px-4 py-3 sm:py-2 bg-slate-800 border border-cyan-800 rounded-lg text-base sm:text-sm text-white placeholder-slate-400 focus:ring-2 focus:ring-cyan-500 min-h-12 sm:min-h-10"
