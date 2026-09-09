@@ -39,6 +39,7 @@ export default function Home() {
         impostorCount: 1,
         gameMode: "standard" as const,
         wordListId: "default",
+        showImpostorsRemaining: false,
       };
 
       const gameId = await createGame(userId, playerName, defaultSettings);

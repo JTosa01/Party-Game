@@ -5,6 +5,7 @@ import { Game } from "@/types/game";
 import { useGameContext } from "@/context/GameContext";
 import {
   confirmRoundCard,
+  forceEndWordConfirmation,
   replaceWordIfSkipMajority,
   startRoundIfEveryoneReady,
   voteToSkipWord,
@@ -18,10 +19,11 @@ interface RoundRevealProps {
 
 export default function RoundReveal({ gameId, game }: RoundRevealProps) {
   const { currentPlayerId } = useGameContext();
-  const [loadingAction, setLoadingAction] = useState<"confirm" | "skip" | null>(null);
+  const [loadingAction, setLoadingAction] = useState<"confirm" | "skip" | "force" | null>(null);
   const [error, setError] = useState("");
 
   const currentPlayer = currentPlayerId ? game.players[currentPlayerId] : null;
+  const isHost = currentPlayerId === game.hostId;
   const activePlayers = useMemo(
     () => Object.values(game.players).filter((player) => player.isAlive),
     [game.players]
@@ -81,6 +83,22 @@ export default function RoundReveal({ gameId, game }: RoundRevealProps) {
       await voteToSkipWord(gameId, currentPlayerId);
     } catch (err) {
       setError("Failed to vote to skip the word");
+      console.error(err);
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleForceEnd = async () => {
+    if (!currentPlayerId || !isHost || loadingAction) return;
+
+    setLoadingAction("force");
+    setError("");
+
+    try {
+      await forceEndWordConfirmation(gameId, currentPlayerId);
+    } catch (err) {
+      setError("Failed to end word confirmation");
       console.error(err);
     } finally {
       setLoadingAction(null);
@@ -191,6 +209,21 @@ export default function RoundReveal({ gameId, game }: RoundRevealProps) {
                 : "Vote to Skip Word"}
             </button>
           </div>
+
+          {isHost && (
+            <div className="mt-6 pt-6 border-t border-slate-600">
+              <button
+                onClick={handleForceEnd}
+                disabled={!!loadingAction}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition disabled:bg-slate-600 disabled:text-slate-300"
+              >
+                {loadingAction === "force" ? "Starting round..." : "Force Start Round"}
+              </button>
+              <p className="text-xs text-slate-400 text-center mt-2">
+                Host only: Start the round before every player confirms
+              </p>
+            </div>
+          )}
 
           {hasConfirmed && (
             <p className="text-green-300 text-center text-sm mt-4">

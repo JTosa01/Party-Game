@@ -10,6 +10,7 @@ import {
 } from "@/services/gameService";
 import { useGameContext } from "@/context/GameContext";
 import { getSharedDrawingColor } from "@/services/sharedDrawingColors";
+import { useTimer } from "@/hooks/useTimer";
 
 interface VotingPanelProps {
   gameId: string;
@@ -27,15 +28,23 @@ export default function VotingPanel({
   const [voteResults, setVoteResults] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [forcingEnd, setForcingEnd] = useState(false);
+  const [timerEnded, setTimerEnded] = useState(false);
   const [error, setError] = useState("");
   const isHost = currentPlayerId === game.hostId;
 
   const alivePlayersWithoutCurrent = Object.values(game.players).filter(
     (p) => p.isAlive && p.id !== currentPlayerId
-  );
+  ).sort((a, b) => a.joinedAt - b.joinedAt || a.id.localeCompare(b.id));
   const currentPlayer = currentPlayerId ? game.players[currentPlayerId] : null;
   const hasVoted = !!currentPlayer?.hasVoted;
+  const activeVote = selectedVote ?? currentPlayer?.voteTarget ?? null;
   const canVote = !!currentPlayer?.isAlive;
+  const timerEnabled = !!game.settings.roundTimerEnabled;
+  const { seconds, isRunning } = useTimer(
+    game.settings.clueTimeLimit,
+    () => setTimerEnded(true),
+    timerEnabled
+  );
   const isSharedDrawingMode = game.settings.gameMode === "shared_drawing";
   const sharedDrawingPlayers = (game.turnOrder || []).filter(
     (playerId) => game.players[playerId]?.isAlive
@@ -69,8 +78,23 @@ export default function VotingPanel({
     checkAllVoted();
   }, [game, gameId]);
 
+  useEffect(() => {
+    if (!timerEnabled || !timerEnded || isRunning) return;
+
+    const endVoting = async () => {
+      try {
+        await forceEndVoting(gameId);
+      } catch (err) {
+        setError("Failed to end voting when time expired");
+        console.error(err);
+      }
+    };
+
+    endVoting();
+  }, [gameId, isRunning, timerEnded, timerEnabled]);
+
   const handleVote = async (targetId: string) => {
-    if (!canVote || hasVoted || loading) return;
+    if (!canVote || loading || (timerEnabled && !isRunning)) return;
 
     setLoading(true);
     setError("");
@@ -168,6 +192,14 @@ export default function VotingPanel({
           )}
 
           {/* Vote Results */}
+          {timerEnabled && (
+            <div className="flex items-center justify-center mb-6">
+              <div className={`text-4xl font-bold font-mono ${seconds > 10 ? "text-blue-400" : "text-red-400"}`}>
+                {String(seconds).padStart(2, "0")}s
+              </div>
+            </div>
+          )}
+
           {Object.keys(voteResults).length > 0 && (
             <div className="mb-8 p-4 bg-slate-700 rounded-lg border border-slate-600">
               <h3 className="font-semibold text-white mb-3">Current Votes</h3>
@@ -201,17 +233,17 @@ export default function VotingPanel({
             {/* Nobody Option */}
             <button
               onClick={() => handleVote("nobody")}
-              disabled={!canVote || hasVoted || loading}
+              disabled={!canVote || loading || (timerEnabled && !isRunning)}
               className={`w-full p-4 rounded-lg font-semibold transition border-2 ${
-                selectedVote === "nobody"
+                activeVote === "nobody"
                   ? "bg-amber-600 text-white border-amber-500"
-                  : hasVoted || !canVote
+                  : !canVote || (timerEnabled && !isRunning)
                   ? "bg-slate-700 text-slate-400 cursor-not-allowed border-slate-600"
                   : "bg-slate-700 text-white hover:bg-amber-600 border-amber-600"
               }`}
             >
               Nobody - Another Round
-              {selectedVote === "nobody" && " ✓"}
+              {activeVote === "nobody" && " ✓"}
             </button>
 
             {alivePlayersWithoutCurrent.length === 0 ? (
@@ -223,17 +255,17 @@ export default function VotingPanel({
                 <button
                   key={player.id}
                   onClick={() => handleVote(player.id)}
-                  disabled={!canVote || hasVoted || loading}
+                  disabled={!canVote || loading || (timerEnabled && !isRunning)}
                   className={`w-full p-4 rounded-lg font-semibold transition ${
-                    selectedVote === player.id
+                    activeVote === player.id
                       ? "bg-red-600 text-white border border-red-500"
-                      : hasVoted || !canVote
+                      : !canVote || (timerEnabled && !isRunning)
                       ? "bg-slate-700 text-slate-400 cursor-not-allowed border border-slate-600"
                       : "bg-slate-700 text-white hover:bg-red-600 border border-slate-600"
                   }`}
                 >
                   {player.name}
-                  {selectedVote === player.id && " ✓"}
+                  {activeVote === player.id && " ✓"}
                 </button>
               ))
             )}

@@ -38,6 +38,7 @@ export interface GameSettings {
   impostorCount: number;
   gameMode: GameMode;
   wordListId: string;
+  showImpostorsRemaining?: boolean;
   drawTimeLimit?: number; // seconds for drawing mode
 }
 

@@ -314,6 +314,46 @@ export async function replaceWordIfSkipMajority(
   });
 }
 
+// Force end the word confirmation phase for the host.
+export async function forceEndWordConfirmation(
+  gameId: string,
+  hostId: string
+): Promise<void> {
+  const gameRef = doc(db, "games", gameId);
+
+  await runTransaction(db, async (transaction) => {
+    const gameSnap = await transaction.get(gameRef);
+    if (!gameSnap.exists()) return;
+
+    const game = gameSnap.data() as Game;
+    if (game.status !== "revealing" || game.hostId !== hostId) return;
+
+    transaction.update(gameRef, {
+      status: "playing",
+      currentRound: game.currentRound > 0 ? game.currentRound : 1,
+      startedAt: game.startedAt || Date.now(),
+    });
+  });
+}
+
+// Force end the discussion phase for the host.
+export async function forceEndDiscussion(
+  gameId: string,
+  hostId: string
+): Promise<void> {
+  const gameRef = doc(db, "games", gameId);
+
+  await runTransaction(db, async (transaction) => {
+    const gameSnap = await transaction.get(gameRef);
+    if (!gameSnap.exists()) return;
+
+    const game = gameSnap.data() as Game;
+    if (game.status !== "playing" || game.hostId !== hostId) return;
+
+    transaction.update(gameRef, { status: "voting" });
+  });
+}
+
 // Submit a clue (text or drawing)
 export async function submitClue(
   gameId: string,
@@ -577,8 +617,7 @@ export async function forceEndVoting(gameId: string): Promise<void> {
       }
     });
 
-    const mostVotedId = Object.entries(voteCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
-    if (!mostVotedId) return;
+    const mostVotedId = Object.entries(voteCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "nobody";
 
     const eliminatedPlayers = Object.fromEntries(
       Object.entries(game.players).map(([playerId, player]) => [

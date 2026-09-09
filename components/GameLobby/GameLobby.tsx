@@ -259,7 +259,7 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
       !gameData ||
       !currentPlayerId ||
       !devTarget ||
-      !devMessage.trim()
+      (!devMessage.trim() && !devGifUrl.trim())
     ) {
       return;
     }
@@ -445,7 +445,7 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
                 <div className="flex gap-2">
                   <button
                     type="submit"
-                    disabled={sendingDevMessage || !devMessage.trim()}
+                    disabled={sendingDevMessage || (!devMessage.trim() && !devGifUrl.trim())}
                     className="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition disabled:bg-slate-600 min-h-12 sm:min-h-10 font-medium"
                   >
                     {sendingDevMessage ? "Sending..." : "Send"}
@@ -593,6 +593,34 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
                       />
                     <span className="text-sm text-slate-300 whitespace-nowrap">seconds</span>
                   </div>
+                </div>
+              </div>
+
+              <div className="mb-3 sm:mb-4 rounded-lg border border-slate-600 bg-slate-700 p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+                  <div className="flex-1">
+                    <label
+                      htmlFor="show-impostors-remaining"
+                      className="block text-base sm:text-sm font-medium text-slate-200"
+                    >
+                      Show Impostors Remaining
+                    </label>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Show the number of living impostors in the discussion turn order.
+                    </p>
+                  </div>
+                  <input
+                    id="show-impostors-remaining"
+                    type="checkbox"
+                    checked={!!gameData.settings.showImpostorsRemaining}
+                    onChange={(e) => updateGameSettings(gameId, {
+                      showImpostorsRemaining: e.target.checked,
+                    }).catch((err) => {
+                      setError("Failed to update impostor visibility setting");
+                      console.error(err);
+                    })}
+                    className="h-5 w-5 rounded border-slate-500 bg-slate-800 text-blue-600 focus:ring-blue-500 cursor-pointer mt-2 sm:mt-0"
+                  />
                 </div>
               </div>
 

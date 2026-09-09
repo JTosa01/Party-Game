@@ -9,7 +9,7 @@ export default function DevBroadcast() {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    if (!broadcast?.message) {
+    if (!broadcast?.message && !broadcast?.gifUrl) {
       setVisible(true);
       return;
     }
@@ -20,7 +20,7 @@ export default function DevBroadcast() {
     const isSecret = broadcast.message.startsWith("$");
     const messageContent = isSecret ? broadcast.message.slice(1).trimStart() : broadcast.message;
     const normalizedMessage = messageContent.toLowerCase();
-    const shouldTrigger = !isSecret || broadcast.targetPlayerId === currentPlayerId;
+    const shouldTrigger = isSecret || broadcast.targetPlayerId === currentPlayerId;
     
     if (normalizedMessage === "flashbang" && shouldTrigger) {
       // Flash the screen white
@@ -130,10 +130,10 @@ export default function DevBroadcast() {
     return () => window.clearTimeout(timeout);
   }, [broadcast?.timestamp, broadcast?.message, currentPlayerId]);
 
-  if (!broadcast?.message || !visible) return null;
+  if ((!broadcast?.message && !broadcast?.gifUrl) || !visible) return null;
 
   const isSecret = broadcast.message.startsWith("$");
-  if (isSecret && broadcast.targetPlayerId !== currentPlayerId) {
+  if (!isSecret && broadcast.targetPlayerId !== currentPlayerId) {
     return null;
   }
 
@@ -145,7 +145,7 @@ export default function DevBroadcast() {
     <div className="pointer-events-none fixed inset-x-0 top-24 z-[60] flex justify-center px-4">
       <div className="max-w-4xl rounded-lg border border-cyan-400 bg-slate-950/95 px-8 py-5 text-center shadow-2xl shadow-cyan-950">
         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">
-          Message for {broadcast.targetPlayerName}
+          {isSecret ? "Message for everyone" : `Message for ${broadcast.targetPlayerName}`}
         </p>
         {broadcast.gifUrl && (
           <div className="mt-3 flex justify-center">
@@ -157,7 +157,9 @@ export default function DevBroadcast() {
             />
           </div>
         )}
-        <p className="mt-2 text-3xl font-bold text-white">{displayedMessage}</p>
+        {displayedMessage && (
+          <p className="mt-2 text-3xl font-bold text-white">{displayedMessage}</p>
+        )}
       </div>
     </div>
   );

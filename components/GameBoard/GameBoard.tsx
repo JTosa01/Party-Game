@@ -7,6 +7,7 @@ import {
   submitClue,
   onCluesUpdate,
   updateGameStatus,
+  forceEndDiscussion,
   voteToSkipDiscussion,
   sendDevBroadcast,
   clearDevBroadcast,
@@ -44,6 +45,7 @@ export default function GameBoard({
   const [devGifUrl, setDevGifUrl] = useState("");
   const [sendingDevMessage, setSendingDevMessage] = useState(false);
   const [devStatusMessage, setDevStatusMessage] = useState("");
+  const [forcingEnd, setForcingEnd] = useState(false);
 
   const impostorIds = game.impostorIds?.length ? game.impostorIds : [game.impostorId];
   const isImpostor = currentPlayerId ? impostorIds.includes(currentPlayerId) : false;
@@ -52,6 +54,7 @@ export default function GameBoard({
   const isDrawingMode = game.settings.gameMode === "drawing";
   const isSharedDrawingMode = game.settings.gameMode === "shared_drawing";
   const currentPlayer = currentPlayerId ? game.players[currentPlayerId] : null;
+  const isHost = currentPlayerId === game.hostId;
   const isCurrentPlayerAlive = !!currentPlayer?.isAlive;
   const timerEnabled = !!game.settings.roundTimerEnabled;
   const timeLimit = (isDrawingMode || isSharedDrawingMode) ? (game.settings.drawTimeLimit || 60) : game.settings.clueTimeLimit;
@@ -62,6 +65,9 @@ export default function GameBoard({
   const aliveTurnOrder = (game.turnOrder || []).filter(
     (playerId) => game.players[playerId]?.isAlive
   );
+  const aliveImpostorCount = impostorIds.filter(
+    (playerId) => game.players[playerId]?.isAlive
+  ).length;
   const currentDrawingPlayerId =
     isSharedDrawingMode && game.currentTurnIndex !== undefined
       ? aliveTurnOrder[game.currentTurnIndex]
@@ -179,6 +185,22 @@ export default function GameBoard({
     }
   };
 
+  const handleForceEndDiscussion = async () => {
+    if (!currentPlayerId || !isHost || forcingEnd) return;
+
+    setForcingEnd(true);
+    setError("");
+
+    try {
+      await forceEndDiscussion(gameId, currentPlayerId);
+    } catch (err) {
+      setError("Failed to end discussion");
+      console.error(err);
+    } finally {
+      setForcingEnd(false);
+    }
+  };
+
 
   const handleSubmitSharedDrawing = async (drawingData: string) => {
     if (!currentPlayerName) return;
@@ -239,7 +261,7 @@ export default function GameBoard({
 
   const handleSendDevMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!devTargetId || !devMessage.trim() || !currentPlayerId || !currentPlayerName) return;
+    if (!devTargetId || (!devMessage.trim() && !devGifUrl.trim()) || !currentPlayerId || !currentPlayerName) return;
 
     const targetPlayer = game.players[devTargetId];
     if (!targetPlayer) return;
@@ -291,6 +313,11 @@ export default function GameBoard({
               {devModeEnabled && roundIsActive && (
                 <p className="text-xs text-cyan-300 mb-3">
                   Dev mode enabled. Click a player name to send a page message.
+                </p>
+              )}
+              {game.settings.showImpostorsRemaining && (
+                <p className="text-sm text-red-300 mb-3">
+                  Impostors remaining: {aliveImpostorCount}
                 </p>
               )}
               <div className="flex gap-2 flex-wrap">
@@ -350,7 +377,7 @@ export default function GameBoard({
                   <div className="flex gap-2">
                     <button
                       type="submit"
-                      disabled={sendingDevMessage || !devMessage.trim()}
+                      disabled={sendingDevMessage || (!devMessage.trim() && !devGifUrl.trim())}
                       className="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition disabled:bg-slate-600"
                     >
                       {sendingDevMessage ? "Sending..." : "Send"}
@@ -589,6 +616,21 @@ export default function GameBoard({
                   {Object.values(game.players).filter(p => p.isAlive && p.votedToSkip).length} / {Object.values(game.players).filter(p => p.isAlive).length} players voted to skip
                 </p>
               )}
+            </div>
+          )}
+
+          {isHost && roundIsActive && (
+            <div className="bg-slate-800 rounded-2xl shadow-xl p-6 border border-slate-700">
+              <button
+                onClick={handleForceEndDiscussion}
+                disabled={forcingEnd}
+                className="w-full py-2 rounded-lg font-semibold transition bg-blue-600 hover:bg-blue-700 text-white disabled:bg-slate-600"
+              >
+                {forcingEnd ? "Ending discussion..." : "Force End Discussion"}
+              </button>
+              <p className="text-xs text-slate-400 text-center mt-2">
+                Host only: Move to voting immediately
+              </p>
             </div>
           )}
 
