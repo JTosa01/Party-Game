@@ -418,6 +418,50 @@ export async function submitClue(
     return;
   }
 
+  if (game?.settings.gameMode === "drawing" && game.settings.drawOnlyOnTurn) {
+    if (!drawingData) {
+      throw new Error("Drawing submissions require drawing data");
+    }
+
+    await runTransaction(db, async (transaction) => {
+      const gameSnap = await transaction.get(gameRef);
+      if (!gameSnap.exists()) throw new Error("Game not found");
+
+      const currentGame = gameSnap.data() as Game;
+      if (currentGame.status !== "playing") {
+        throw new Error("The round is not accepting drawings");
+      }
+      if (currentGame.currentRound !== round) {
+        throw new Error("Drawing was submitted for an old round");
+      }
+
+      const aliveTurnOrder = (currentGame.turnOrder || []).filter(
+        (turnPlayerId) => currentGame.players[turnPlayerId]?.isAlive
+      );
+      const currentTurnIndex = currentGame.currentTurnIndex ?? 0;
+      const currentTurnPlayerId = aliveTurnOrder[currentTurnIndex];
+      if (!currentTurnPlayerId || currentTurnPlayerId !== playerId) {
+        throw new Error("It is not this player's turn to draw");
+      }
+
+      const cluesRef = collection(db, "games", gameId, "clues");
+      transaction.set(doc(cluesRef), {
+        playerId,
+        playerName,
+        round,
+        timestamp: Date.now(),
+        drawingData,
+      });
+
+      const nextTurnIndex = currentTurnIndex + 1;
+      transaction.update(gameRef, nextTurnIndex >= aliveTurnOrder.length
+        ? { status: "voting" }
+        : { currentTurnIndex: nextTurnIndex });
+    });
+
+    return;
+  }
+
   const cluesRef = collection(db, "games", gameId, "clues");
   const clueData: any = {
     playerId,
@@ -828,6 +872,7 @@ export async function resetVotes(gameId: string): Promise<void> {
 
   batch.update(gameRef, {
     currentRound: game.currentRound + 1,
+    currentTurnIndex: 0,
     accumulatedCanvasData: deleteField(),
   });
 

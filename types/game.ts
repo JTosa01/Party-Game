@@ -40,6 +40,7 @@ export interface GameSettings {
   wordListId: string;
   showImpostorsRemaining?: boolean;
   drawTimeLimit?: number; // seconds for drawing mode
+  drawOnlyOnTurn?: boolean;
 }
 
 export interface Game {

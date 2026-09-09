@@ -40,6 +40,7 @@ export default function Home() {
         gameMode: "standard" as const,
         wordListId: "default",
         showImpostorsRemaining: false,
+        drawOnlyOnTurn: false,
       };
 
       const gameId = await createGame(userId, playerName, defaultSettings);

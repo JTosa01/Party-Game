@@ -680,6 +680,33 @@ export default function GameLobby({ gameId }: GameLobbyProps) {
                     />
                     <span className="text-sm text-slate-300 whitespace-nowrap">seconds</span>
                   </div>
+                  {gameData.settings.gameMode === "drawing" && (
+                    <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 border-t border-slate-600 pt-3 sm:pt-4">
+                      <div className="flex-1">
+                        <label
+                          htmlFor="draw-only-on-turn"
+                          className="block text-base sm:text-sm font-medium text-slate-200"
+                        >
+                          Can only draw on turn
+                        </label>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Players only see the drawing screen during their turn.
+                        </p>
+                      </div>
+                      <input
+                        id="draw-only-on-turn"
+                        type="checkbox"
+                        checked={!!gameData.settings.drawOnlyOnTurn}
+                        onChange={(e) => updateGameSettings(gameId, {
+                          drawOnlyOnTurn: e.target.checked,
+                        }).catch((err) => {
+                          setError("Failed to update drawing turn setting");
+                          console.error(err);
+                        })}
+                        className="h-5 w-5 rounded border-slate-500 bg-slate-800 text-blue-600 focus:ring-blue-500 cursor-pointer mt-2 sm:mt-0"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -53,6 +53,7 @@ export default function GameBoard({
   const visualImpostor = isImpostor && !showFakeMode;
   const isDrawingMode = game.settings.gameMode === "drawing";
   const isSharedDrawingMode = game.settings.gameMode === "shared_drawing";
+  const drawOnlyOnTurn = isDrawingMode && !!game.settings.drawOnlyOnTurn;
   const currentPlayer = currentPlayerId ? game.players[currentPlayerId] : null;
   const isHost = currentPlayerId === game.hostId;
   const isCurrentPlayerAlive = !!currentPlayer?.isAlive;
@@ -69,7 +70,7 @@ export default function GameBoard({
     (playerId) => game.players[playerId]?.isAlive
   ).length;
   const currentDrawingPlayerId =
-    isSharedDrawingMode && game.currentTurnIndex !== undefined
+    (isSharedDrawingMode || drawOnlyOnTurn) && game.currentTurnIndex !== undefined
       ? aliveTurnOrder[game.currentTurnIndex]
       : null;
   const currentDrawingPlayerName = currentDrawingPlayerId
@@ -81,7 +82,7 @@ export default function GameBoard({
 
   // Determine if it's the current player's turn in shared drawing mode
   const isCurrentPlayersTurn = 
-    isSharedDrawingMode && currentDrawingPlayerId
+    (isSharedDrawingMode || drawOnlyOnTurn) && currentDrawingPlayerId
       ? currentDrawingPlayerId === currentPlayerId
       : true;
 
@@ -229,6 +230,10 @@ export default function GameBoard({
   };
   const handleSubmitDrawing = async (drawingData: string) => {
     if (!currentPlayerName) return;
+    if (drawOnlyOnTurn && !isCurrentPlayersTurn) {
+      setError("It is not your turn to draw yet.");
+      return;
+    }
 
     setLoading(true);
     setError("");
@@ -515,14 +520,14 @@ export default function GameBoard({
 
           {isCurrentPlayerAlive && !isSharedDrawingMode && !hasSubmittedClue && roundIsActive && (
             <>
-              {isSharedDrawingMode && !isCurrentPlayersTurn ? (
+              {drawOnlyOnTurn && !isCurrentPlayersTurn ? (
                 <div className="bg-slate-800 rounded-2xl shadow-xl p-6 border border-slate-700">
                   <div className="bg-blue-900 border border-blue-700 rounded-lg p-4">
                     <p className="text-blue-300 font-semibold">
                       Waiting for your turn to draw...
                     </p>
                     <p className="text-sm text-blue-200 mt-2">
-                      Current player: {game.turnOrder && game.currentTurnIndex !== undefined ? game.players[game.turnOrder[game.currentTurnIndex]]?.name : "Unknown"}
+                      Current player: {currentDrawingPlayerName}
                     </p>
                   </div>
                 </div>
